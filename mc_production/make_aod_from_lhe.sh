@@ -4,11 +4,15 @@ scram p CMSSW CMSSW_5_3_11_patch2
 
 cd CMSSW_5_3_11_patch2/src/
 
-n_events_pileup=$1
-n_events=$2
-where_to_start=$3
-lumi_number=$4
-output_dir=$5
+input_file=$1
+n_events_pileup=$2
+n_events=$3
+where_to_start=$4
+lumi_number=$5
+output_dir=$6
+
+echo \$input_file
+echo $input_file
 
 echo \$n_events_pileup
 echo $n_events_pileup
@@ -59,7 +63,7 @@ cmsDriver.py Configuration/GenProduction/python/EightTeV/hadronizer.py \
 --eventcontent RAWSIM \
 --datatier GEN-SIM \
 -n $n_events \
---filein file:/afs/cern.ch/work/a/anlevin/data/lhe/ww_to_ll_same_sign_anom_8_tev_0_tev-4.lhe \
+--filein file:$input_file \
 --customise Configuration/GenProduction/randomizeSeeds.randomizeSeeds \
 --customise_commands process.source.skipEvents\ =\ cms.untracked.uint32\($where_to_start\)\\nprocess.source.firstLuminosityBlock\ =\ cms.untracked.uint32\($lumi_number\)
 
