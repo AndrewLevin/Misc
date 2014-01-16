@@ -158,7 +158,6 @@ void vbs_ana
   TH1D* histoMVA = new TH1D("histoMVA", "histoMVA", nBinMVA, xbins);
   histoMVA->Sumw2();
   TH1D *histo_Data      = (TH1D*) histoMVA->Clone("histo_Data");
-  TH1D *histo_WWewk_ALT = (TH1D*) histoMVA->Clone("histo_WWewk_ALT");
   TH1D *histo_WWewk     = (TH1D*) histoMVA->Clone("histo_WWewk");
   TH1D *histo_WWqcd     = (TH1D*) histoMVA->Clone("histo_WWqcd");
   TH1D *histo_WZ        = (TH1D*) histoMVA->Clone("histo_WZ");
@@ -201,8 +200,6 @@ void vbs_ana
   histo4->Scale(0.0);
   histo5->Scale(0.0);
 
-  TH1D* histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingUp   = new TH1D( Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingUp  ->Sumw2();
-  TH1D* histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingDown = new TH1D( Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%sDown",finalStateName,ECMsb.Data()), Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%sDown",finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingDown->Sumw2();
   TH1D* histo_WWewk_CMS_MVAWWewkStatBoundingUp           = new TH1D( Form("histo_WWewk_CMS_wwss%s__MVAWWewkStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), Form("histo_WWewk_CMS_wwss%s__MVAWWewkStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_WWewk_CMS_MVAWWewkStatBoundingUp  ->Sumw2();
   TH1D* histo_WWewk_CMS_MVAWWewkStatBoundingDown         = new TH1D( Form("histo_WWewk_CMS_wwss%s_MVAWWewkStatBounding_%sDown",finalStateName,ECMsb.Data()), Form("histo_WWewk_CMS_wwss%s__MVAWWewkStatBounding_%sDown",finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_WWewk_CMS_MVAWWewkStatBoundingDown->Sumw2();
   TH1D* histo_WWqcd_CMS_MVAWWqcdStatBoundingUp           = new TH1D( Form("histo_WWqcd_CMS_wwss%s_MVAWWqcdStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), Form("histo_WWqcd_CMS_wwss%s_MVAWWqcdStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_WWqcd_CMS_MVAWWqcdStatBoundingUp  ->Sumw2();
@@ -216,8 +213,6 @@ void vbs_ana
   TH1D* histo_Wjets_CMS_MVAWjetsStatBoundingUp           = new TH1D( Form("histo_Wjets_CMS_wwss%s_MVAWjetsStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), Form("histo_Wjets_CMS_wwss%s_MVAWjetsStatBounding_%sUp"  ,finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_Wjets_CMS_MVAWjetsStatBoundingUp  ->Sumw2();
   TH1D* histo_Wjets_CMS_MVAWjetsStatBoundingDown         = new TH1D( Form("histo_Wjets_CMS_wwss%s_MVAWjetsStatBounding_%sDown",finalStateName,ECMsb.Data()), Form("histo_Wjets_CMS_wwss%s_MVAWjetsStatBounding_%sDown",finalStateName,ECMsb.Data()), nBinMVA, xbins); histo_Wjets_CMS_MVAWjetsStatBoundingDown->Sumw2();
 
-  TH1D* histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinUp  [nBinMVA];
-  TH1D* histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinDown[nBinMVA];
   TH1D* histo_WWewk_CMS_MVAWWewkStatBoundingBinUp          [nBinMVA];
   TH1D* histo_WWewk_CMS_MVAWWewkStatBoundingBinDown        [nBinMVA];
   TH1D* histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp          [nBinMVA];
@@ -231,8 +226,6 @@ void vbs_ana
   TH1D* histo_Wjets_CMS_MVAWjetsStatBoundingBinUp          [nBinMVA];
   TH1D* histo_Wjets_CMS_MVAWjetsStatBoundingBinDown        [nBinMVA];
   for(int nb=0; nb<nBinMVA; nb++){
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinUp[nb]   = new TH1D(Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%s_Bin%dUp"	     ,finalStateName,ECMsb.Data(),nb), Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%s_Bin%dUp"	    ,finalStateName,ECMsb.Data(),nb),nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinUp[nb]	   ->Sumw2();
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinDown[nb] = new TH1D(Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%s_Bin%dDown"      ,finalStateName,ECMsb.Data(),nb), Form("histo_WWewk_ALT_CMS_wwss%s_MVAWWewk_ALTStatBounding_%s_Bin%dDown"      ,finalStateName,ECMsb.Data(),nb),nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinDown[nb]	  ->Sumw2();
     histo_WWewk_CMS_MVAWWewkStatBoundingBinUp[nb]	    = new TH1D(Form("histo_WWewk_CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%dUp"	    ,finalStateName,ECMsb.Data(),nb), Form("histo_WWewk_CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%dUp"   ,finalStateName,ECMsb.Data(),nb),nBinMVA, xbins); histo_WWewk_CMS_MVAWWewkStatBoundingBinUp[nb]        ->Sumw2();
     histo_WWewk_CMS_MVAWWewkStatBoundingBinDown[nb]	    = new TH1D(Form("histo_WWewk_CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%dDown"      ,finalStateName,ECMsb.Data(),nb), Form("histo_WWewk_CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%dDown"      ,finalStateName,ECMsb.Data(),nb),nBinMVA, xbins); histo_WWewk_CMS_MVAWWewkStatBoundingBinDown[nb]	 ->Sumw2();
     histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp[nb]	    = new TH1D(Form("histo_WWqcd_CMS_wwss%s_MVAWWqcdStatBounding_%s_Bin%dUp"        ,finalStateName,ECMsb.Data(),nb), Form("histo_WWqcd_CMS_wwss%s_MVAWWqcdStatBounding_%s_Bin%dUp"        ,finalStateName,ECMsb.Data(),nb),nBinMVA, xbins); histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp[nb]	  ->Sumw2();
@@ -247,8 +240,6 @@ void vbs_ana
     histo_Wjets_CMS_MVAWjetsStatBoundingBinDown[nb]         = new TH1D(Form("histo_Wjets_CMS_wwss%s_MVAWjetsStatBounding_%s_Bin%dDown",finalStateName,ECMsb.Data(),nb), Form("histo_Wjets_CMS_wwss%s_MVAWjetsStatBounding_%s_Bin%dDown",finalStateName,ECMsb.Data(),nb),nBinMVA, xbins); histo_Wjets_CMS_MVAWjetsStatBoundingBinDown[nb]->Sumw2();
   }
 
-  TH1D* histo_WWewk_ALT_CMS_MVALepEffBoundingUp    = new TH1D( Form("histo_WWewk_ALT_%sUp",effName)  , Form("histo_WWewk_ALT_%sUp",effName)  , nBinMVA, xbins); histo_WWewk_ALT_CMS_MVALepEffBoundingUp  ->Sumw2();
-  TH1D* histo_WWewk_ALT_CMS_MVALepEffBoundingDown  = new TH1D( Form("histo_WWewk_ALT_%sDown",effName), Form("histo_WWewk_ALT_%sDown",effName), nBinMVA, xbins); histo_WWewk_ALT_CMS_MVALepEffBoundingDown->Sumw2();
   TH1D* histo_WWewk_CMS_MVALepEffBoundingUp        = new TH1D( Form("histo_WWewk_%sUp",effName)  , Form("histo_WWewk_%sUp",effName)  , nBinMVA, xbins); histo_WWewk_CMS_MVALepEffBoundingUp  ->Sumw2();
   TH1D* histo_WWewk_CMS_MVALepEffBoundingDown      = new TH1D( Form("histo_WWewk_%sDown",effName), Form("histo_WWewk_%sDown",effName), nBinMVA, xbins); histo_WWewk_CMS_MVALepEffBoundingDown->Sumw2();
   TH1D* histo_WWqcd_CMS_MVALepEffBoundingUp        = new TH1D( Form("histo_WWqcd_%sUp",effName)  , Form("histo_WWqcd_%sUp",effName)  , nBinMVA, xbins); histo_WWqcd_CMS_MVALepEffBoundingUp  ->Sumw2();
@@ -260,8 +251,6 @@ void vbs_ana
   TH1D* histo_VVV_CMS_MVALepEffBoundingUp          = new TH1D( Form("histo_VVV_%sUp",effName)  , Form("histo_VVV_%sUp",effName)  , nBinMVA, xbins); histo_VVV_CMS_MVALepEffBoundingUp  ->Sumw2();
   TH1D* histo_VVV_CMS_MVALepEffBoundingDown        = new TH1D( Form("histo_VVV_%sDown",effName), Form("histo_VVV_%sDown",effName), nBinMVA, xbins); histo_VVV_CMS_MVALepEffBoundingDown->Sumw2();
 
-  TH1D* histo_WWewk_ALT_CMS_MVALepResBoundingUp    = new TH1D( Form("histo_WWewk_ALT_%sUp",momName)  , Form("histo_WWewk_ALT_%sUp",momName)  , nBinMVA, xbins); histo_WWewk_ALT_CMS_MVALepResBoundingUp  ->Sumw2();
-  TH1D* histo_WWewk_ALT_CMS_MVALepResBoundingDown  = new TH1D( Form("histo_WWewk_ALT_%sDown",momName), Form("histo_WWewk_ALT_%sDown",momName), nBinMVA, xbins); histo_WWewk_ALT_CMS_MVALepResBoundingDown->Sumw2();
   TH1D* histo_WWewk_CMS_MVALepResBoundingUp        = new TH1D( Form("histo_WWewk_%sUp",momName)  , Form("histo_WWewk_%sUp",momName)  , nBinMVA, xbins); histo_WWewk_CMS_MVALepResBoundingUp  ->Sumw2();
   TH1D* histo_WWewk_CMS_MVALepResBoundingDown      = new TH1D( Form("histo_WWewk_%sDown",momName), Form("histo_WWewk_%sDown",momName), nBinMVA, xbins); histo_WWewk_CMS_MVALepResBoundingDown->Sumw2();
   TH1D* histo_WWqcd_CMS_MVALepResBoundingUp        = new TH1D( Form("histo_WWqcd_%sUp",momName)  , Form("histo_WWqcd_%sUp",momName)  , nBinMVA, xbins); histo_WWqcd_CMS_MVALepResBoundingUp  ->Sumw2();
@@ -273,8 +262,6 @@ void vbs_ana
   TH1D* histo_VVV_CMS_MVALepResBoundingUp          = new TH1D( Form("histo_VVV_%sUp",momName)  , Form("histo_VVV_%sUp",momName)  , nBinMVA, xbins); histo_VVV_CMS_MVALepResBoundingUp  ->Sumw2();
   TH1D* histo_VVV_CMS_MVALepResBoundingDown        = new TH1D( Form("histo_VVV_%sDown",momName), Form("histo_VVV_%sDown",momName), nBinMVA, xbins); histo_VVV_CMS_MVALepResBoundingDown->Sumw2();
 
-  TH1D* histo_WWewk_ALT_CMS_MVAMETResBoundingUp    = new TH1D( Form("histo_WWewk_ALT_%sUp","CMS_scale_met")  , Form("histo_WWewk_ALT_%sUp","CMS_scale_met")  , nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAMETResBoundingUp  ->Sumw2();
-  TH1D* histo_WWewk_ALT_CMS_MVAMETResBoundingDown  = new TH1D( Form("histo_WWewk_ALT_%sDown","CMS_scale_met"), Form("histo_WWewk_ALT_%sDown","CMS_scale_met"), nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAMETResBoundingDown->Sumw2();
   TH1D* histo_WWewk_CMS_MVAMETResBoundingUp        = new TH1D( Form("histo_WWewk_%sUp","CMS_scale_met")  , Form("histo_WWewk_%sUp","CMS_scale_met")  , nBinMVA, xbins); histo_WWewk_CMS_MVAMETResBoundingUp  ->Sumw2();
   TH1D* histo_WWewk_CMS_MVAMETResBoundingDown      = new TH1D( Form("histo_WWewk_%sDown","CMS_scale_met"), Form("histo_WWewk_%sDown","CMS_scale_met"), nBinMVA, xbins); histo_WWewk_CMS_MVAMETResBoundingDown->Sumw2();
   TH1D* histo_WWqcd_CMS_MVAMETResBoundingUp        = new TH1D( Form("histo_WWqcd_%sUp","CMS_scale_met")  , Form("histo_WWqcd_%sUp","CMS_scale_met")  , nBinMVA, xbins); histo_WWqcd_CMS_MVAMETResBoundingUp  ->Sumw2();
@@ -286,8 +273,6 @@ void vbs_ana
   TH1D* histo_VVV_CMS_MVAMETResBoundingUp          = new TH1D( Form("histo_VVV_%sUp","CMS_scale_met")  , Form("histo_VVV_%sUp","CMS_scale_met")  , nBinMVA, xbins); histo_VVV_CMS_MVAMETResBoundingUp  ->Sumw2();
   TH1D* histo_VVV_CMS_MVAMETResBoundingDown        = new TH1D( Form("histo_VVV_%sDown","CMS_scale_met"), Form("histo_VVV_%sDown","CMS_scale_met"), nBinMVA, xbins); histo_VVV_CMS_MVAMETResBoundingDown->Sumw2();
 
-  TH1D* histo_WWewk_ALT_CMS_MVAJESBoundingUp    = new TH1D( Form("histo_WWewk_ALT_%sUp","CMS_scale_j")  , Form("histo_WWewk_ALT_%sUp","CMS_scale_j")  , nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAJESBoundingUp  ->Sumw2();
-  TH1D* histo_WWewk_ALT_CMS_MVAJESBoundingDown  = new TH1D( Form("histo_WWewk_ALT_%sDown","CMS_scale_j"), Form("histo_WWewk_ALT_%sDown","CMS_scale_j"), nBinMVA, xbins); histo_WWewk_ALT_CMS_MVAJESBoundingDown->Sumw2();
   TH1D* histo_WWewk_CMS_MVAJESBoundingUp        = new TH1D( Form("histo_WWewk_%sUp","CMS_scale_j")  , Form("histo_WWewk_%sUp","CMS_scale_j")  , nBinMVA, xbins); histo_WWewk_CMS_MVAJESBoundingUp  ->Sumw2();
   TH1D* histo_WWewk_CMS_MVAJESBoundingDown      = new TH1D( Form("histo_WWewk_%sDown","CMS_scale_j"), Form("histo_WWewk_%sDown","CMS_scale_j"), nBinMVA, xbins); histo_WWewk_CMS_MVAJESBoundingDown->Sumw2();
   TH1D* histo_WWqcd_CMS_MVAJESBoundingUp        = new TH1D( Form("histo_WWqcd_%sUp","CMS_scale_j")  , Form("histo_WWqcd_%sUp","CMS_scale_j")  , nBinMVA, xbins); histo_WWqcd_CMS_MVAJESBoundingUp  ->Sumw2();
@@ -1323,10 +1308,8 @@ void vbs_ana
     histo_WWqcd			         ->Scale(0.0);
   }
 
-  for(int i=1; i<=histo_WWewk_ALT->GetNbinsX(); i++){
+  for(int i=1; i<=histo_WWewk->GetNbinsX(); i++){
     double factorUp = +1.0; double factorDown = -1.0;
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingUp  ->SetBinContent(i,TMath::Max(histo_WWewk_ALT->GetBinContent(i)+factorUp  *histo_WWewk_ALT	 ->GetBinError(i),0.000001));
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingDown->SetBinContent(i,TMath::Max(histo_WWewk_ALT->GetBinContent(i)+factorDown*histo_WWewk_ALT	 ->GetBinError(i),0.000001));
     histo_WWewk_CMS_MVAWWewkStatBoundingUp	    ->SetBinContent(i,TMath::Max(histo_WWewk    ->GetBinContent(i)+factorUp  *histo_WWewk	 ->GetBinError(i),0.000001));
     histo_WWewk_CMS_MVAWWewkStatBoundingDown        ->SetBinContent(i,TMath::Max(histo_WWewk    ->GetBinContent(i)+factorDown*histo_WWewk	 ->GetBinError(i),0.000001));
     histo_WWqcd_CMS_MVAWWqcdStatBoundingUp	    ->SetBinContent(i,TMath::Max(histo_WWqcd    ->GetBinContent(i)+factorUp  *histo_WWqcd	 ->GetBinError(i),0.000001));
@@ -1340,8 +1323,6 @@ void vbs_ana
     histo_Wjets_CMS_MVAWjetsStatBoundingUp    	    ->SetBinContent(i,TMath::Max(histo_Wjets    ->GetBinContent(i)+factorUp  *histo_Wjets        ->GetBinError(i),0.000001));
     histo_Wjets_CMS_MVAWjetsStatBoundingDown  	    ->SetBinContent(i,TMath::Max(histo_Wjets    ->GetBinContent(i)+factorDown*histo_Wjets        ->GetBinError(i),0.000001));
 
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinUp[i-1]  ->Add(histo_WWewk_ALT   ); histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinUp[i-1]  ->SetBinContent(i,TMath::Max(histo_WWewk_ALT   ->GetBinContent(i)+factorUp  *histo_WWewk_ALT->GetBinError(i),0.000001));
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinDown[i-1]->Add(histo_WWewk_ALT   ); histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinDown[i-1]->SetBinContent(i,TMath::Max(histo_WWewk_ALT   ->GetBinContent(i)+factorDown*histo_WWewk_ALT->GetBinError(i),0.000001));
     histo_WWewk_CMS_MVAWWewkStatBoundingBinUp[i-1]	    ->Add(histo_WWewk       ); histo_WWewk_CMS_MVAWWewkStatBoundingBinUp[i-1]          ->SetBinContent(i,TMath::Max(histo_WWewk       ->GetBinContent(i)+factorUp  *histo_WWewk    ->GetBinError(i),0.000001));
     histo_WWewk_CMS_MVAWWewkStatBoundingBinDown[i-1]	    ->Add(histo_WWewk       ); histo_WWewk_CMS_MVAWWewkStatBoundingBinDown[i-1]        ->SetBinContent(i,TMath::Max(histo_WWewk       ->GetBinContent(i)+factorDown*histo_WWewk    ->GetBinError(i),0.000001));
     histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp[i-1]	    ->Add(histo_WWqcd       ); histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp[i-1]          ->SetBinContent(i,TMath::Max(histo_WWqcd       ->GetBinContent(i)+factorUp  *histo_WWqcd    ->GetBinError(i),0.000001));
@@ -1364,14 +1345,8 @@ void vbs_ana
   histo_Wjets_CMS_MVAWBoundingUp->Scale(histo_Wjets->GetSumOfWeights()/histo_Wjets_CMS_MVAWBoundingUp->GetSumOfWeights());
   histo_WZ_CMS_WZNLOBoundingUp  ->Scale(histo_WZ   ->GetSumOfWeights()/histo_WZ_CMS_WZNLOBoundingUp  ->GetSumOfWeights());
 
-  for(int i=1; i<=histo_WWewk_ALT->GetNbinsX(); i++){
+  for(int i=1; i<=histo_WWewk->GetNbinsX(); i++){
     
-    mean = histo_WWewk_ALT			   ->GetBinContent(i);
-    up   = histo_WWewk_ALT_CMS_MVAMETResBoundingUp->GetBinContent(i);
-    diff = TMath::Abs(mean-up);
-    if     (mean-up >0) histo_WWewk_ALT_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
-    else		histo_WWewk_ALT_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
-
     mean = histo_WWewk			   ->GetBinContent(i);
     up   = histo_WWewk_CMS_MVAMETResBoundingUp->GetBinContent(i);
     diff = TMath::Abs(mean-up);
@@ -1432,7 +1407,6 @@ void vbs_ana
   TFile* outFileLimits = new TFile(outputLimits,"recreate");
   outFileLimits->cd();
   histo_Data	 ->Write();
-  histo_WWewk_ALT->Write();
   histo_WWewk	 ->Write();
   histo_WWqcd	 ->Write();
   histo_WZ	 ->Write();
@@ -1441,7 +1415,6 @@ void vbs_ana
   histo_Wjets	 ->Write();
 
   cout << histo_Data	 ->GetSumOfWeights() << " ";
-  cout << histo_WWewk_ALT->GetSumOfWeights() << " ";
   cout << histo_WWewk	 ->GetSumOfWeights() << " ";
   cout << histo_WWqcd	 ->GetSumOfWeights() << " ";
   cout << histo_WZ	 ->GetSumOfWeights() << " ";
@@ -1450,8 +1423,6 @@ void vbs_ana
   cout << histo_Wjets	 ->GetSumOfWeights() << " ";
   cout << endl;
   printf("uncertainties Stat\n");
-  histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingUp  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingUp 	 ->GetBinContent(i)/histo_WWewk_ALT   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
-  histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingDown->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingDown      ->GetBinContent(i)/histo_WWewk_ALT   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVAWWewkStatBoundingUp	  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk	->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVAWWewkStatBoundingUp	     ->GetBinContent(i)/histo_WWewk   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVAWWewkStatBoundingDown	  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk	->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVAWWewkStatBoundingDown      ->GetBinContent(i)/histo_WWewk   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWqcd_CMS_MVAWWqcdStatBoundingUp	  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWqcd	   ->GetBinContent(i)>0)printf("%5.1f ",histo_WWqcd_CMS_MVAWWqcdStatBoundingUp  	->GetBinContent(i)/histo_WWqcd   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
@@ -1465,8 +1436,6 @@ void vbs_ana
   histo_Wjets_CMS_MVAWjetsStatBoundingUp  	  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_Wjets->GetBinContent(i)>0)printf("%5.1f ",histo_Wjets_CMS_MVAWjetsStatBoundingUp  ->GetBinContent(i)/histo_Wjets->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_Wjets_CMS_MVAWjetsStatBoundingDown	  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_Wjets->GetBinContent(i)>0)printf("%5.1f ",histo_Wjets_CMS_MVAWjetsStatBoundingDown->GetBinContent(i)/histo_Wjets->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   printf("uncertainties LepEff\n");
-  histo_WWewk_ALT_CMS_MVALepEffBoundingUp    ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVALepEffBoundingUp      ->GetBinContent(i)/histo_WWewk_ALT    ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
-  histo_WWewk_ALT_CMS_MVALepEffBoundingDown  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVALepEffBoundingDown   ->GetBinContent(i)/histo_WWewk_ALT     ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVALepEffBoundingUp        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVALepEffBoundingUp	  ->GetBinContent(i)/histo_WWewk	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVALepEffBoundingDown      ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVALepEffBoundingDown   ->GetBinContent(i)/histo_WWewk	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWqcd_CMS_MVALepEffBoundingUp        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWqcd     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWqcd_CMS_MVALepEffBoundingUp	     ->GetBinContent(i)/histo_WWqcd	   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
@@ -1478,8 +1447,6 @@ void vbs_ana
   histo_VVV_CMS_MVALepEffBoundingUp          ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_VVV  ->GetBinContent(i)>0)printf("%5.1f ",histo_VVV_CMS_MVALepEffBoundingUp	->GetBinContent(i)/histo_VVV  ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_VVV_CMS_MVALepEffBoundingDown        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_VVV  ->GetBinContent(i)>0)printf("%5.1f ",histo_VVV_CMS_MVALepEffBoundingDown  ->GetBinContent(i)/histo_VVV  ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   printf("uncertainties LetRes\n");
-  histo_WWewk_ALT_CMS_MVALepResBoundingUp    ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVALepResBoundingUp      ->GetBinContent(i)/histo_WWewk_ALT    ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
-  histo_WWewk_ALT_CMS_MVALepResBoundingDown  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVALepResBoundingDown   ->GetBinContent(i)/histo_WWewk_ALT     ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVALepResBoundingUp        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVALepResBoundingUp	  ->GetBinContent(i)/histo_WWewk	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVALepResBoundingDown      ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVALepResBoundingDown   ->GetBinContent(i)/histo_WWewk	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWqcd_CMS_MVALepResBoundingUp        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWqcd     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWqcd_CMS_MVALepResBoundingUp	     ->GetBinContent(i)/histo_WWqcd	   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
@@ -1491,8 +1458,6 @@ void vbs_ana
   histo_VVV_CMS_MVALepResBoundingUp          ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_VVV  ->GetBinContent(i)>0)printf("%5.1f ",histo_VVV_CMS_MVALepResBoundingUp	->GetBinContent(i)/histo_VVV  ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_VVV_CMS_MVALepResBoundingDown        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_VVV  ->GetBinContent(i)>0)printf("%5.1f ",histo_VVV_CMS_MVALepResBoundingDown  ->GetBinContent(i)/histo_VVV  ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   printf("uncertainties METRes\n");
-  histo_WWewk_ALT_CMS_MVAMETResBoundingUp    ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT	->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVAMETResBoundingUp	  ->GetBinContent(i)/histo_WWewk_ALT	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
-  histo_WWewk_ALT_CMS_MVAMETResBoundingDown  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT	->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVAMETResBoundingDown   ->GetBinContent(i)/histo_WWewk_ALT	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVAMETResBoundingUp        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVAMETResBoundingUp	     ->GetBinContent(i)/histo_WWewk	   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVAMETResBoundingDown      ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVAMETResBoundingDown	->GetBinContent(i)/histo_WWewk     ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWqcd_CMS_MVAMETResBoundingUp        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWqcd     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWqcd_CMS_MVAMETResBoundingUp	     ->GetBinContent(i)/histo_WWqcd	   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
@@ -1504,8 +1469,6 @@ void vbs_ana
   histo_VVV_CMS_MVAMETResBoundingUp          ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_VVV  ->GetBinContent(i)>0)printf("%5.1f ",histo_VVV_CMS_MVAMETResBoundingUp	->GetBinContent(i)/histo_VVV  ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_VVV_CMS_MVAMETResBoundingDown        ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_VVV  ->GetBinContent(i)>0)printf("%5.1f ",histo_VVV_CMS_MVAMETResBoundingDown  ->GetBinContent(i)/histo_VVV  ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   printf("uncertainties JES\n");
-  histo_WWewk_ALT_CMS_MVAJESBoundingUp       ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVAJESBoundingUp	      ->GetBinContent(i)/histo_WWewk_ALT    ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
-  histo_WWewk_ALT_CMS_MVAJESBoundingDown     ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk_ALT  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_ALT_CMS_MVAJESBoundingDown       ->GetBinContent(i)/histo_WWewk_ALT    ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVAJESBoundingUp           ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVAJESBoundingUp	  ->GetBinContent(i)/histo_WWewk	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWewk_CMS_MVAJESBoundingDown         ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWewk  ->GetBinContent(i)>0)printf("%5.1f ",histo_WWewk_CMS_MVAJESBoundingDown   ->GetBinContent(i)/histo_WWewk	->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
   histo_WWqcd_CMS_MVAJESBoundingUp           ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WWqcd     ->GetBinContent(i)>0)printf("%5.1f ",histo_WWqcd_CMS_MVAJESBoundingUp     ->GetBinContent(i)/histo_WWqcd	   ->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
@@ -1525,8 +1488,6 @@ void vbs_ana
   histo_WS_CMS_MVAWSBoundingDown	  ->Write(); for(int i=1; i<=histo_WWewk->GetNbinsX(); i++) {if(histo_WS   ->GetBinContent(i)>0)printf("%5.1f ",histo_WS_CMS_MVAWSBoundingDown       ->GetBinContent(i)/histo_WS->GetBinContent(i)*100);else printf("100.0 ");} printf("\n");
 
   for(int nb=0; nb<nBinMVA; nb++){
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinUp[nb]   ->Write();
-    histo_WWewk_ALT_CMS_MVAWWewk_ALTStatBoundingBinDown[nb] ->Write();
     histo_WWewk_CMS_MVAWWewkStatBoundingBinUp[nb]	    ->Write();
     histo_WWewk_CMS_MVAWWewkStatBoundingBinDown[nb]	    ->Write();
     histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp[nb]	    ->Write();
@@ -1541,12 +1502,6 @@ void vbs_ana
     histo_Wjets_CMS_MVAWjetsStatBoundingBinDown[nb]         ->Write();
   }
 
-  // HACK!, we don't want alternative models now
-  NFinal[nBkg] = 0.0;
-  char theWWewk_ALTString[20];
-  if(NFinal[nBkg] > 0) sprintf(theWWewk_ALTString,"1.000");
-  else                 sprintf(theWWewk_ALTString,"  -  ");
-
   char outputLimitsShape[200];
   sprintf(outputLimitsShape,"histo_limits_wwss%2s_nsign%1d_shape_%4s.txt",finalStateName,signSel,ECMsb.Data());
   ofstream newcardShape;
@@ -1557,47 +1512,45 @@ void vbs_ana
   newcardShape << Form("Observation %d\n",(int)nSelectedData[WWSEL+nSelTypes]);
   newcardShape << Form("shapes *   *   %s  histo_$PROCESS histo_$PROCESS_$SYSTEMATIC\n",outputLimits);
   newcardShape << Form("shapes data_obs * %s  histo_Data \n",outputLimits);
-  newcardShape << Form("bin wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s\n",finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data());
-  newcardShape << Form("process WWewk_ALT WWewk WWqcd WZ WS VVV Wjets\n");
-  newcardShape << Form("process -1 0 1 2 3 4 5\n");
-  newcardShape << Form("rate %6.3f %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f\n",NFinal[nBkg],NFinal[0],NFinal[1],NFinal[2],NFinal[3],NFinal[4],TMath::Max(NFinal[5],0.0));
-  newcardShape << Form("lumi_%4s                               lnN  %5.3f %5.3f %5.3f %5.3f %5.3f %5.3f   -  \n",ECMsb.Data(),lumiE,lumiE,lumiE,lumiE,lumiE,lumiE); 		     
-  newcardShape << Form("%s                                   shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",effName,theWWewk_ALTString);
-  newcardShape << Form("%s                                   shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",momName,theWWewk_ALTString);
-  newcardShape << Form("CMS_scale_met                        shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",theWWewk_ALTString);
-  newcardShape << Form("CMS_scale_j                          shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",theWWewk_ALTString);			 
-  newcardShape << Form("pdf_qqbar                              lnN  %5.3f %5.3f %5.3f %5.3f   -     -     -  \n",pdf_qqbar[0],pdf_qqbar[1],pdf_qqbar[2],pdf_qqbar[3]);
-  newcardShape << Form("QCDscale_WWewk		               lnN  %5.3f %5.3f   -     -     -     -     -  \n",QCDscale_WWewk,QCDscale_WWewk);	
-  newcardShape << Form("QCDscale_WWqcd		               lnN    -     -   %5.3f   -     -     -     -  \n",QCDscale_WWqcd);	
-  newcardShape << Form("QCDscale_VV		               lnN    -     -     -   1.100   -     -     -  \n");		
-  newcardShape << Form("CMS_wwss_WZ3l                          lnN    -     -     -   %5.3f   -     -     -  \n",syst_WZ3l);		
+  newcardShape << Form("bin wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s\n",finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data());
+  newcardShape << Form("process WWewk WWqcd WZ WS VVV Wjets\n");
+  newcardShape << Form("process 0 1 2 3 4 5\n");
+  newcardShape << Form("rate %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f\n",NFinal[0],NFinal[1],NFinal[2],NFinal[3],NFinal[4],TMath::Max(NFinal[5],0.0));
+  newcardShape << Form("lumi_%4s                               lnN  %5.3f %5.3f %5.3f %5.3f %5.3f   -  \n",ECMsb.Data(),lumiE,lumiE,lumiE,lumiE,lumiE); 		     
+  newcardShape << Form("%s                                   shape   1.000 1.000 1.000 1.000 1.000   -  \n",effName);
+  newcardShape << Form("%s                                   shape   1.000 1.000 1.000 1.000 1.000   -  \n",momName);
+  newcardShape << Form("CMS_scale_met                        shape   1.000 1.000 1.000 1.000 1.000   -  \n");
+  newcardShape << Form("CMS_scale_j                          shape   1.000 1.000 1.000 1.000 1.000   -  \n");			 
+  newcardShape << Form("pdf_qqbar                              lnN   %5.3f %5.3f %5.3f   -     -     -  \n",pdf_qqbar[1],pdf_qqbar[2],pdf_qqbar[3]);
+  newcardShape << Form("QCDscale_WWewk		               lnN   %5.3f   -     -     -     -     -  \n",QCDscale_WWewk);	
+  newcardShape << Form("QCDscale_WWqcd		               lnN    -   %5.3f   -     -     -     -  \n",QCDscale_WWqcd);	
+  newcardShape << Form("QCDscale_VV		               lnN    -     -   1.100   -     -     -  \n");		
+  newcardShape << Form("CMS_wwss_WZ3l                          lnN    -     -   %5.3f   -     -     -  \n",syst_WZ3l);		
   if(NFinal[3] > 0)
-  newcardShape << Form("CMS_wwss_WZNLOBounding               shape    -     -     -   1.000   -     -     -  \n");
+  newcardShape << Form("CMS_wwss_WZNLOBounding               shape    -     -   1.000   -     -     -  \n");
   if(NFinal[4] > 0)
-  newcardShape << Form("CMS_wwss_MVAWSBounding               shape    -     -     -     -   1.000   -     -  \n");		
+  newcardShape << Form("CMS_wwss_MVAWSBounding               shape    -     -     -   1.000   -     -  \n");		
   if(NFinal[4] > 0)
-  newcardShape << Form("QCDscale_VVV		               lnN    -     -     -     -     -   1.500   -  \n");		
+  newcardShape << Form("QCDscale_VVV		               lnN    -     -     -     -   1.500   -  \n");		
   if(NFinal[5] > 0)
-  newcardShape << Form("CMS_FakeRate                           lnN    -     -     -     -     -	    -   %5.3f\n",WjetsSyst);  
+  newcardShape << Form("CMS_FakeRate                           lnN    -     -     -     -	    -   %5.3f\n",WjetsSyst);  
   if(NFinal[5] > 0)
-  newcardShape << Form("CMS_wwss_MVAWBounding                shape    -     -     -	-     -     -   1.000\n");
+  newcardShape << Form("CMS_wwss_MVAWBounding                shape    -     -	-     -     -   1.000\n");
   if(useFullStatTemplates == false){
-    if(NFinal[nBkg] > 0) newcardShape << Form("CMS_wwss%s_MVAWWewk_ALTStatBounding_%s  shape  1.000   -     -	  -	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[0]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s      shape    -   1.000   -	  -	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[3]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s      shape    -     -   1.000   -	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[2]    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s	       shape    -     -     -	1.000	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[4]    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s	       shape    -     -     -	  -   1.000   -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[1]    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s        shape    -     -     -	  -	-   1.000   -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[5]    > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s      shape    -     -     -	  -	-     -   1.000\n",finalStateName,ECMsb.Data());
+    if(NFinal[0]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s      shape  1.000   -	  -	-     -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[3]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s      shape    -   1.000   -	-     -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[2]    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s	       shape    -     -	1.000	-     -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[4]    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s	       shape    -     -	  -   1.000   -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[1]    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s        shape    -     -	  -	-   1.000   -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[5]    > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s      shape    -     -	  -	-     -   1.000\n",finalStateName,ECMsb.Data());
   } else {
     for(int nb=1; nb<=nBinMVA; nb++){
-      if(NFinal[nBkg] > 0 && histo_WWewk_ALT->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewk_ALTStatBounding_%s_Bin%d  shape  1.000   -     -     -     -     -	 -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[0]    > 0 && histo_WWewk->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%d          shape    -   1.000   -     -     -     -	     -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[1]    > 0 && histo_WWqcd->GetBinContent(nb)   > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s_Bin%d           shape    -     -   1.000   -     -     -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[2]    > 0 && histo_WZ->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s_Bin%d                shape    -     -	 -   1.000   -     -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[3]    > 0 && histo_WS->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s_Bin%d                shape    -     -	 -     -   1.000   -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[4]    > 0 && histo_VVV->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s_Bin%d              shape    -     -	 -     -     -   1.000   -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[5]    > 0 && histo_Wjets->GetBinContent(nb) > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s_Bin%d             shape    -     -	 -     -     -     -   1.000\n",finalStateName,ECMsb.Data(),nb-1);
+      if(NFinal[0]    > 0 && histo_WWewk->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%d          shape  1.000   -     -     -     -	     -  \n",finalStateName,ECMsb.Data(),nb-1);
+      if(NFinal[1]    > 0 && histo_WWqcd->GetBinContent(nb)   > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s_Bin%d           shape    -   1.000   -     -     -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
+      if(NFinal[2]    > 0 && histo_WZ->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s_Bin%d                shape    -	 -   1.000   -     -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
+      if(NFinal[3]    > 0 && histo_WS->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s_Bin%d                shape    -	 -     -   1.000   -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
+      if(NFinal[4]    > 0 && histo_VVV->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s_Bin%d              shape    -	 -     -     -   1.000   -  \n",finalStateName,ECMsb.Data(),nb-1);
+      if(NFinal[5]    > 0 && histo_Wjets->GetBinContent(nb) > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s_Bin%d             shape    -	 -     -     -     -   1.000\n",finalStateName,ECMsb.Data(),nb-1);
     }
   }
   newcardShape.close();
