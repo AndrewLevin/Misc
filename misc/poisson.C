@@ -65,9 +65,9 @@ void poisson(int sel = 2, int nevt = 1000000,
  //  hnevt2->Draw("");
  //}
 
- assert(hnevt3->GetXaxis()->GetBinCenter(nobs+1)==nobs);
+ assert(hnevt2->GetXaxis()->GetBinCenter(nobs+1)==nobs);
 
- double probability = hnevt3->Integral(nobs+1,std::numeric_limits<Int_t>::max());
+ double probability = hnevt2->Integral(nobs+1,std::numeric_limits<Int_t>::max());
  std::cout << "probability = " << probability << std::endl;
  double significance = ::ROOT::Math::normal_quantile_c(probability,1);
  std::cout << "significance = " << significance << std::endl;
