@@ -11,7 +11,7 @@ echo $inputfile
 echo pwd
 pwd
 
-cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_11_patch2/
+cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_13_patch3/
 eval `scramv1 runtime -sh`
 
 cd -

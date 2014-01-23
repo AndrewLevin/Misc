@@ -1,9 +1,3 @@
-export SCRAM_ARCH=slc5_amd64_gcc462
-
-scram p CMSSW CMSSW_5_3_11_patch2
-
-cd CMSSW_5_3_11_patch2/src/
-
 input_file=$1
 n_events_pileup=$2
 n_events=$3
@@ -35,14 +29,26 @@ pwd
 echo date
 date
 
+export SCRAM_ARCH=slc5_amd64_gcc462
+
+cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_13_patch3/src/
+
 eval `scramv1 runtime -sh`
 
-mkdir -p Configuration/GenProduction/python/EightTeV/
+cd -;
 
-cp /afs/cern.ch/work/a/anlevin/UserCode/mc_production/Hadronizer_MgmMatchTuneZ2star_8TeV_madgraph_tauola_cff.py Configuration/GenProduction/python/EightTeV/hadronizer.py
-cp /afs/cern.ch/work/a/anlevin/UserCode/mc_production/randomizeSeeds.py Configuration/GenProduction/python/
+echo \$CMSSW_BASE
+echo $CMSSW_BASE
 
-scram b
+echo pwd 
+pwd
+
+#mkdir -p Configuration/GenProduction/python/EightTeV/
+
+#cp /afs/cern.ch/work/a/anlevin/UserCode/mc_production/Hadronizer_MgmMatchTuneZ2star_8TeV_madgraph_tauola_cff.py Configuration/GenProduction/python/EightTeV/hadronizer.py
+#cp /afs/cern.ch/work/a/anlevin/UserCode/mc_production/randomizeSeeds.py Configuration/GenProduction/python/
+
+#scram b
 
 echo "begin making pileup file"
 

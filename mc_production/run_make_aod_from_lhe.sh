@@ -1,5 +1,5 @@
-input_file=/afs/cern.ch/work/a/anlevin/data/lhe/qed_4_qcd_99_sm.lhe
-output_dir=/eos/cms/store/user/anlevin/data/AOD/qed_4_qcd_99_sm/
+input_file=/afs/cern.ch/work/a/anlevin/data/lhe/qed_2_qcd_99_lm0123_grid.lhe
+output_dir=/eos/cms/store/user/anlevin/data/AOD/qed_2_qcd_99_lm0123/
 echo \$input_file
 echo $input_file
 
@@ -32,7 +32,7 @@ if((outputdirsize!=0))
 fi
 
 
-max_events=100000
+max_events=20000
 where_to_start=0
 
 if((nevents<max_events))
@@ -45,6 +45,6 @@ sleep 15
 
 while((where_to_start<=max_events)); do
     echo $where_to_start
-    bsub -q 1nd "bash make_aod_from_lhe.sh $input_file 300 100 $where_to_start $where_to_start $output_dir"
+    bsub -q 1nd "bash make_aod_from_lhe_2.sh $input_file 300 100 $where_to_start $where_to_start $output_dir"
     where_to_start=$(($where_to_start+100))
 done
