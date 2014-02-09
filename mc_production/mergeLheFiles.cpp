@@ -54,7 +54,7 @@ int main(int argc, char** argv)
   
   // open lhe file
   std::ifstream initialFile(initialFileName, std::ios::in);
-  std::ofstream outFile("/tmp/out.lhe", std::ios::out);
+  std::ofstream outFile("out.lhe", std::ios::out);
   
  
   bool writeEvent = false;

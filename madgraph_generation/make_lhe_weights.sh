@@ -4,7 +4,8 @@ seed=$3
 output_dir=$4
 reweight_file=$5
 model=$6
-
+run_card=$7
+param_card=$8
 
 echo "pwd"
 pwd
@@ -29,6 +30,17 @@ echo $gen_command2
 echo \$model
 echo $model
 
+echo \$run_card
+echo $run_card
+
+echo \$param_card
+echo $param_card
+
+echo "begin checking if there is a reweight file"
+if [ $reweight_file != "NONE" ]; then
+    echo "no reweight file"
+fi
+echo "finished checking if there is a reweight file"
 
 n_events_per_job=1000
 
@@ -71,10 +83,16 @@ $gen_command1
 $gen_command2
 output mg_dir
 launch mg_dir
-reweight=ON 
-/scratch/anlevin/UserCode/madgraph_generation/run_card.dat
-/scratch/anlevin/UserCode/madgraph_generation/param_card.dat
-$reweight_file
+EOF
+if [ $reweight_file != "NONE" ]; then
+    echo "reweight=ON" >> commands.mg5 
+fi
+echo $run_card >> commands.mg5
+echo $param_card >> commands.mg5
+if [ $reweight_file != "NONE"]; then
+    echo $reweight_file >> commands.mg5
+fi
+cat >> commands.mg5 <<EOF
 set clusinfo F
 set nevents $n_events_per_job
 set iseed $seed
@@ -90,10 +108,16 @@ $gen_command1
 $gen_command2
 output mg_dir
 launch mg_dir
-reweight=ON
-/scratch/anlevin/UserCode/madgraph_generation/run_card.dat
-/scratch/anlevin/UserCode/madgraph_generation/param_card.dat
-$reweight_file
+EOF
+if [ $reweight_file != "NONE" ]; then
+     echo "reweight=ON" >> commands.mg5
+fi
+echo $run_card >>  commands.mg5
+echo $param_card >> commands.mg5
+if [ $reweight_file != "NONE" ]; then
+    echo $reweight_file >> commands.mg5
+fi
+cat >> commands.mg5 <<EOF
 set clusinfo F
 set nevents $n_events_per_job
 set iseed $seed
