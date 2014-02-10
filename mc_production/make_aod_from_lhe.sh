@@ -4,6 +4,7 @@ n_events=$3
 where_to_start=$4
 lumi_number=$5
 output_dir=$6
+hadron_fragment=$7
 
 echo \$input_file
 echo $input_file
@@ -22,6 +23,9 @@ echo $where_to_start
 
 echo \$lumi_number
 echo $lumi_number
+
+echo \$hadron_fragment
+echo $hadron_fragment
 
 echo pwd
 pwd
@@ -43,12 +47,11 @@ echo $CMSSW_BASE
 echo pwd 
 pwd
 
-#mkdir -p Configuration/GenProduction/python/EightTeV/
+if ! ls $CMSSW_BASE/src/$hadron_fragment >& /dev/null; then
+    echo "hadronizer fragment does not exist, exiting"
+    exit
+fi
 
-#cp /afs/cern.ch/work/a/anlevin/UserCode/mc_production/Hadronizer_MgmMatchTuneZ2star_8TeV_madgraph_tauola_cff.py Configuration/GenProduction/python/EightTeV/hadronizer.py
-#cp /afs/cern.ch/work/a/anlevin/UserCode/mc_production/randomizeSeeds.py Configuration/GenProduction/python/
-
-#scram b
 
 echo "begin making pileup file"
 
@@ -61,7 +64,8 @@ ls -lh
 
 echo "begin making GEN-SIM file"
 
-cmsDriver.py Configuration/GenProduction/python/EightTeV/hadronizer.py \
+#cmsDriver.py Configuration/GenProduction/python/EightTeV/hadronizer.py \
+cmsDriver.py $hadron_fragment \
 --step GEN,SIM --beamspot Realistic8TeVCollision \
 --conditions START53_V7C::All \
 --pileup NoPileUp \
@@ -71,8 +75,8 @@ cmsDriver.py Configuration/GenProduction/python/EightTeV/hadronizer.py \
 -n $n_events \
 --filein file:$input_file \
 --customise Configuration/GenProduction/randomizeSeeds.randomizeSeeds \
---customise_commands process.source.skipEvents\ =\ cms.untracked.uint32\($where_to_start\)\\nprocess.source.firstLuminosityBlock\ =\ cms.untracked.uint32\($lumi_number\)
-
+--customise_commands process.source.skipEvents\ =\ cms.untracked.uint32\($where_to_start\)\\nprocess.source.firstLuminosityBlock\ =\ cms.untracked.uint32\($lumi_number\) \
+--fileout file:GEN_SIM_file.root
 
 echo "finished making GEN-SIM file"
 
@@ -89,7 +93,7 @@ cmsDriver.py GEN-Fragment \
 --eventcontent RAWSIM \
 --datatier GEN-SIM-RAW \
 -n -1 \
---filein file:hadronizer_py_GEN_SIM.root \
+--filein file:GEN_SIM_file.root \
 --customise_commands process.mix.input.fileNames\ =\ cms.untracked.vstring\(\"file:pileup.root\"\) \
 --customise Configuration/GenProduction/randomizeSeeds.randomizeSeeds
 
@@ -114,7 +118,18 @@ echo "finished making RECO file"
 echo "ls -lh"
 ls -lh
 
-/afs/cern.ch/project/eos/installation/0.2.31/bin/eos.select cp STEP2_RAW2DIGI_L1Reco_RECO.root ${output_dir}STEP2_RAW2DIGI_L1Reco_RECO_$where_to_start.root
+echo "dumping configuration files"
+echo ""
+
+for file in `ls | grep "\.py" | grep -v pyc`; do echo "begin dumping file $file"; echo "";  cat $file; echo ""; echo "finished dumping file $file"; done
+
+if ! cat *py | grep  Pythia6HadronizerFilter >& /dev/null; then
+    echo "no hadronizer in the configuration files, exiting"
+    exit
+fi
+
+/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select cp STEP2_RAW2DIGI_L1Reco_RECO.root ${output_dir}STEP2_RAW2DIGI_L1Reco_RECO_$where_to_start.root
 
 echo date
 date
+

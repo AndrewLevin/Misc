@@ -38,4 +38,4 @@ outputfile=`echo $inputfile | sed "s/\//___/" | sed "s/\//___/" | sed "s/\//___/
 echo \$outputfile
 echo $outputfile
 
-/afs/cern.ch/project/eos/installation/0.2.31/bin/eos.select cp XX-MITDATASET-XX_000.root ${output_dir}$outputfile
+/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select cp XX-MITDATASET-XX_000.root ${output_dir}$outputfile

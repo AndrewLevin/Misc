@@ -1,7 +1,7 @@
-#you need to use a rootlogon.C file that looks like this with this macro:
-#{
-#  gROOT->Macro("$CMSSW_BASE/src/MitAna/macros/setRootEnv.C+");
-#}
+//you need to use a rootlogon.C file that looks like this with this macro:
+//{
+//  gROOT->Macro("$CMSSW_BASE/src/MitAna/macros/setRootEnv.C+");
+//}
 
 #if !defined(__CINT__) || defined(__MAKECINT__)
 #include <TSystem.h>
