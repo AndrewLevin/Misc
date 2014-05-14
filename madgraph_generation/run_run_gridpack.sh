@@ -1,5 +1,5 @@
 nevents=25
-njobs=100
+njobs=1000
 
 seed=1
 
