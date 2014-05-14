@@ -71,7 +71,7 @@ hist_2.GetXaxis().CenterTitle()
 hist_1.SetStats(0)
 hist_2.SetStats(0)
 
-leg=TLegend(.60,.65,.85,.85)
+leg=TLegend(.50,.65,.75,.85)
 #leg=TLegend()
 
 leg.AddEntry(hist_1,label1,"l")

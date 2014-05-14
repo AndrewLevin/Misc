@@ -1,10 +1,10 @@
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Smurf/Core/SmurfTree.h"
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Smurf/Analysis/HWWlvlv/factors.h"
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Smurf/Core/LeptonScaleLookup.h"
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Ana/nt_scripts/trilepton.h"
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Smurf/Analysis/HWWlvlv/OtherBkgScaleFactors_8TeV.h"
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Ana/nt_scripts/makeSystematicEffects.h"
-#include "/home/ceballos/releases/CMSSW_5_2_8/src/Ana/nt_scripts/LeptonEfficiencyZH.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Smurf/Core/SmurfTree.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Smurf/Analysis/HWWlvlv/factors.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Smurf/Core/LeptonScaleLookup.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Analysis/nt_scripts/trilepton.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Smurf/Analysis/HWWlvlv/OtherBkgScaleFactors_8TeV.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Analysis/nt_scripts/makeSystematicEffects.h"
+#include "/home/ceballos/releases/CMSSW_5_3_14/src/Analysis/nt_scripts/LeptonEfficiencyZH.h"
 #include <TROOT.h>
 #include <TFile.h>
 #include <TTree.h>
@@ -22,6 +22,8 @@
 #include "TLorentzVector.h"
 #include "TProfile2D.h"
 
+using namespace std;
+
 void scaleFactor_WS(LorentzVector l,int q, int ld, int mcld, double val[2]);
 
 const int verboseLevel =   1;
@@ -38,18 +40,78 @@ enum selTypeSyst {JESUP=0, JESDOWN, LEPP, LEPM, MET, EFFP, EFFM};
 TString selTypeNameSyst[nSelTypesSyst*2] = {"JESUP-OS", "JESDOWN-OS", "LEPP-OS", "LEPM-OS", "MET-OS", "EFFP-OS", "EFFM-OS",
                                             "JESUP-SS", "JESDOWN-SS", "LEPP-SS", "LEPM-SS", "MET-SS", "EFFP-SS", "EFFM-SS"};
 
+bool do_overflow = false;
+
 int weight;
 
-std::string filename="/afs/cern.ch/work/a/anlevin/data/lhe/qed_4_qcd_99_ls0ls1_grid.lhe";
+std::string filename="/afs/cern.ch/work/a/anlevin/data/lhe/qed_4_qcd_99_lt012_grid.lhe";
 
-vector<pair<float,float> > grid_points;
-vector<float> histo_grid;
+std::vector<std::pair<float,float> > grid_points;
+std::vector<float> histo_grid;
+std::vector<int> lhe_weight_index;
 
+//param1 corresponds to FS0
+//param2 corresponds to FS1
+
+//param1 goes to x axis
+//param2 goes to y axis
+
+int x_param_number = 3;
+int y_param_number = 5;
+
+string make_logNormalKappa(double nominal, double down, double up)
+{
+
+  std::stringstream ss;
+
+  assert(!TMath::IsNaN(up));
+  assert(!TMath::IsNaN(down));
+  assert(!TMath::IsNaN(nominal));
+  assert(up >= 0);
+  assert(down >= 0);
+  assert(nominal >= 0);
+
+  //very small numbers can cause problems in combineCards.py
+  assert(nominal > 1e-4 || nominal == 0);
+
+  if (nominal == 0)
+    return "-";
+  else if (down == 0 && up != 0) {
+    ss << up/nominal;
+    return ss.str();
+  }
+  else if (down != 0 && up == 0){
+    ss << nominal/down;
+    return ss.str();
+  }
+  else if (down == nominal && up == nominal)
+    return "-";
+  else if (down != 0 && up != 0){
+    //very small kappas are set to 0 when cards are combined
+    if (down/nominal < 1e-4 && up/nominal > 1e-4){
+      ss << up/nominal;
+      return ss.str();
+    }
+    else if (down/nominal > 1e-4 && up/nominal < 1e-4) {
+      ss << nominal/down;
+      return ss.str();
+    }
+    else if (down/nominal > 1e-4 && up/nominal > 1e-4){
+      ss << down/nominal<< "/" << up/nominal;
+      return ss.str();
+    }
+    else
+      assert(0);
+  }
+  else
+    assert(0);
+}
 
 void parse_grid()
 {
   grid_points.push_back(pair<float,float>(0,0));
   histo_grid.push_back(0);
+  lhe_weight_index.push_back(0);
 
   ifstream infile(filename.c_str());
   assert(infile.is_open());
@@ -61,6 +123,9 @@ void parse_grid()
     if(line=="<initrwgt>\0"){
       getline(infile,line);
       assert(line=="<weightgroup type='mg_reweighting'>");
+
+      int i = 1;
+
       while(true){
 	getline(infile,line);
 
@@ -70,8 +135,8 @@ void parse_grid()
 	if (line == "</weight>\0" || line=="</weightgroup>\0")
 	  continue;
 
-	int param_number1 = 0;
-	int param_number2 = 0;
+	int param_number1 = -1;
+	int param_number2 = -1;
 	float param1 = 0;
 	float param2 = 0;
 
@@ -80,12 +145,12 @@ void parse_grid()
 	stringstream ss1;
 	ss1 << paraminfo1;
 	ss1 >> param_number1;
-	if(param_number1 == 1)
+	if(param_number1 == x_param_number)
 	  ss1 >> param1;
-	else if (param_number1==2)
+	else if (param_number1==y_param_number)
 	  ss1 >> param2;
-	else
-	  assert(0);
+	//else
+	//  assert(0);
 
 	getline(infile,line);
 
@@ -96,20 +161,35 @@ void parse_grid()
 	  stringstream ss2;
 	  ss2 << paraminfo2;
 	  ss2 >> param_number2;
-	  if(param_number2 == 1)
+	  if(param_number2 == x_param_number)
 	    ss2 >> param1;
-	  else if (param_number2==2)
+	  else if (param_number2==y_param_number)
 	    ss2 >> param2;
-	  else
-	    assert(0);
+	  //else
+	  //  assert(0);
 
 	  assert(param_number1 != param_number2);
 
 	}
-	
-	grid_points.push_back(pair<float,float>(param1,param2));
-	histo_grid.push_back(0);
-	
+	if((param_number1 == x_param_number && param_number2 == y_param_number) || (param_number2 == x_param_number && param_number1 == y_param_number)|| ( param_number1 == x_param_number && param_number2 == -1) || (param_number1 == y_param_number && param_number2 == -1)) {
+	  
+	  //the same grid point may happen multiple times
+	  //make sure to only add each grid point once
+	  bool found =false;
+	  for(int j = 0; j < grid_points.size(); j++){
+	    if (grid_points[j] == pair<float,float>(param1,param2))
+	      found = true;
+	  }
+	  
+	  if(!found){
+	    grid_points.push_back(pair<float,float>(param1,param2));
+	    histo_grid.push_back(0);
+	    lhe_weight_index.push_back(i);
+	  }
+	}
+
+	i++;
+
       }
     }
   }
@@ -119,18 +199,26 @@ void parse_grid()
 
 }
 
+int which_bin = 2;
+string label;
 
-void vbs_ana_anom
+void vbs_ana_anom_grid
 (
  int thePlot = 37,
- TString bgdInputFile    = "/data/smurf/data/Run2012_Summer12_SmurfV9_53X/mitf-alljets/backgroundA_skim14.root",
- TString signalInputFile = "/data/smurf/data/Run2012_Summer12_SmurfV9_53X/mitf-alljets/wwss_ewk_ewkdstype.root",
+ TString bgdInputFile    = "/data/smurf/data/Run2012_Summer12_SmurfV9_53X/mitf-alljets/backgroundA_skim14_ls0ls1.root",
+ TString signalInputFile = "/data/smurf/data/Run2012_Summer12_SmurfV9_53X/mitf-alljets/wwss_qed_4_qcd_99_lm0123.root",
  TString dataInputFile   = "/data/smurf/data/Run2012_Summer12_SmurfV9_53X/mitf-alljets/backgroundA_skim14.root",
  TString systInputFile   = "/data/smurf/data/Run2012_Summer12_SmurfV9_53X/mitf-alljets/hww_syst_skim14.root",
  int period = 3,
  int lSel = 4
  )
 {
+
+  stringstream which_bin_ss;
+  which_bin_ss << which_bin;
+  which_bin_ss >> label;
+
+  std::cout << "label = " << label << std::endl;
 
   parse_grid();
 
@@ -146,6 +234,11 @@ void vbs_ana_anom
   for(int i = 0; i < grid_points.size(); i++){
     std::cout << grid_points[i].first << ", " << grid_points[i].second << std::endl;
   }
+  for(int i = 0; i < lhe_weight_index.size(); i++){
+    std::cout << "lhe_weight_index[i] = " << lhe_weight_index[i] << std::endl;
+  }
+
+
 
   TH1D * data_obs =  new TH1D("data_obs","data_obs",1,0,1);
   TH1D * diboson= new TH1D("diboson","diboson",1,0,1);
@@ -259,8 +352,23 @@ void vbs_ana_anom
   fhDPU->SetDirectory(0);
   delete fPUFile;
 
+  const int nBinMVA_all = 3;
+  Float_t xbins_all[nBinMVA_all+1] = {500,1100,1500,2000};
+
   const int nBinMVA = 1;
-  Float_t xbins[nBinMVA+1] = {1100, 3000};
+  Float_t xbins[nBinMVA];
+  assert(which_bin<nBinMVA_all);
+  
+  xbins[0]=xbins_all[which_bin];
+  xbins[1]=xbins_all[which_bin+1];
+
+  if(which_bin == nBinMVA_all-1)
+    do_overflow = true;
+
+  std::cout << "xbins[0] = " << xbins[0] << std::endl;
+  std::cout << "xbins[1] = " << xbins[1] << std::endl;
+  std::cout << "do_overflow = " << do_overflow << std::endl;
+
   //if(thePlot == 37) {xbins[0] = 500; xbins[1] = 700; xbins[2] = 1100; xbins[3] = 1600; xbins[4] = 2000;}
   TH1D* histoMVA = new TH1D("histoMVA", "histoMVA", nBinMVA, xbins);
   histoMVA->Sumw2();
@@ -591,7 +699,14 @@ void vbs_ana_anom
 			 year, 5, outputVarJESM);
     double MVAVar[6] = {outputVar[13],outputVarJESP[13],outputVarJESM[13],outputVarLepP[13],outputVarLepM[13],outputVarMET[13]};
     if(thePlot == 37) {MVAVar[0]=outputVar[14];MVAVar[1]=outputVarJESP[14];MVAVar[2]=outputVarJESM[14];MVAVar[3]=outputVarLepP[14];MVAVar[4]=outputVarLepM[14];MVAVar[5]=outputVarMET[14];}
-    for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+    if(do_overflow){
+      //we do overflow but we do not do underflow
+      if (MVAVar[0] < xbins[0]) continue;
+      for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+    }
+    else
+      if (MVAVar[0] < xbins[0] || MVAVar[0] > xbins[1]) continue;
+
     double addLepEff	 = 1.0; double addLepEffUp   = 1.0; double addLepEffDown = 1.0;
     addLepEff  = leptonEfficiency(bgdEvent.lep1_.Pt(), bgdEvent.lep1_.Eta(), fhDEffMu, fhDEffEl, bgdEvent.lid1_, 0)*
     		 leptonEfficiency(bgdEvent.lep2_.Pt(), bgdEvent.lep2_.Eta(), fhDEffMu, fhDEffEl, bgdEvent.lid2_, 0);
@@ -962,12 +1077,10 @@ void vbs_ana_anom
     } // if passCuts
   } // end background loop
   
-  std::cout << "andrew debug 1" << std::endl;
-
   //for(int a = 0; a < grid_points.size(); a++){
   //  th2d->SetBinContent(th2d->GetXaxis()->FindFixBin(grid_points[a].first), th2d->GetYaxis()->FindFixBin(grid_points[a].second), 1+(grid_points[a].first-1.5)*(grid_points[a].first-1.5) + (grid_points[a].second-1.5)*(grid_points[a].second-1.5));
   //}
-
+  
   if(systInputFile != ""){
   int nSyst=systEvent.tree_->GetEntries();
   for (int evt=0; evt<nSyst; ++evt) {
@@ -1189,7 +1302,14 @@ void vbs_ana_anom
 			    year, 3, outputVar);
       double MVAVar[6] = {outputVar[13],0,0,0,0,0};
       if(thePlot == 37) {MVAVar[0]=outputVar[14];}
-      for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+      if(do_overflow){
+	//we do overflow but we do not do underflow
+	if (MVAVar[0] < xbins[0]) continue;
+	for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+      }
+      else
+	if (MVAVar[0] < xbins[0] || MVAVar[0] > xbins[1]) continue;
+
       if(passCuts[1][WWSEL]){
 	if     (fDecay == 27){
 	  histo_WZ_CMS_WZNLOBoundingUp->Fill(MVAVar[0], theWeight);
@@ -1288,7 +1408,15 @@ void vbs_ana_anom
 			 year, 5, outputVarJESM);
     double MVAVar[6] = {outputVar[13],outputVarJESP[13],outputVarJESM[13],outputVarLepP[13],outputVarLepM[13],outputVarMET[13]};
     if(thePlot == 37) {MVAVar[0]=outputVar[14];MVAVar[1]=outputVarJESP[14];MVAVar[2]=outputVarJESM[14];MVAVar[3]=outputVarLepP[14];MVAVar[4]=outputVarLepM[14];MVAVar[5]=outputVarMET[14];}
-    for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+ 
+    if(do_overflow){
+      //we do overflow but we do not do underflow
+      if (MVAVar[0] < xbins[0]) continue;
+      for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+    }
+    else
+      if (MVAVar[0] < xbins[0] || MVAVar[0] > xbins[1]) continue;
+
     double addLepEff	 = 1.0; double addLepEffUp   = 1.0; double addLepEffDown = 1.0;
     addLepEff  = leptonEfficiency(sigEvent.lep1_.Pt(), sigEvent.lep1_.Eta(), fhDEffMu, fhDEffEl, sigEvent.lid1_, 0)*
     		 leptonEfficiency(sigEvent.lep2_.Pt(), sigEvent.lep2_.Eta(), fhDEffMu, fhDEffEl, sigEvent.lid2_, 0);
@@ -1404,20 +1532,21 @@ void vbs_ana_anom
 	else if(thePlot ==57) myVar = sigEvent.dR_;
       	histos->Fill(myVar,theWeight);
 	
-	if (sigEvent.lheWeights_.size() != grid_points.size()){
+	if (sigEvent.lheWeights_.size() < grid_points.size()){
 	  std::cout << "theWeight = " << theWeight << std::endl;
-	std::cout << "sigEvent.lheWeights_.size() = " << sigEvent.lheWeights_.size() << std::endl;
-	std::cout << "grid_points.size() = " << grid_points.size() << std::endl;
+	  std::cout << "sigEvent.lheWeights_.size() = " << sigEvent.lheWeights_.size() << std::endl;
+	  std::cout << "grid_points.size() = " << grid_points.size() << std::endl;
 	}
 
-	assert(sigEvent.lheWeights_.size() == grid_points.size());
-	assert(sigEvent.lheWeights_.size() == histo_grid.size());
+	assert(sigEvent.lheWeights_.size() >= grid_points.size());
+	assert(grid_points.size() == histo_grid.size());
+	assert(lhe_weight_index.size() == histo_grid.size());
 
 	for(int a = 0; a < grid_points.size(); a++){
 	  if (theWeight > 0)
-	    histo_grid[a]+=theWeight*sigEvent.lheWeights_[a]/sigEvent.lheWeights_[0]*29700./28000.;
+	    histo_grid[a]+=theWeight*sigEvent.lheWeights_[lhe_weight_index[a]]/sigEvent.lheWeights_[0];//*29700./28000.;
 	  else 
-	    histo_grid[a]+=theWeight*sigEvent.lheWeights_[a]/sigEvent.lheWeights_[0]*16000./15600.;
+	    histo_grid[a]+=theWeight*sigEvent.lheWeights_[lhe_weight_index[a]]/sigEvent.lheWeights_[0];//*16000./15600.;
 	}
       } // end making plots
 
@@ -1580,7 +1709,14 @@ void vbs_ana_anom
 			    year, 3, outputVar);
       double MVAVar[6] = {outputVar[13],0,0,0,0,0};
       if(thePlot == 37) {MVAVar[0]=outputVar[14];}
-      for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+      if(do_overflow){
+	//we do overflow but we do not do underflow
+	if (MVAVar[0] < xbins[0]) continue;
+	for(int nv=0; nv<6; nv++) MVAVar[nv] = TMath::Min(TMath::Max(MVAVar[nv],xbins[0]+0.001),xbins[nBinMVA]-0.001);
+      }
+      else
+	if (MVAVar[0] < xbins[0] || MVAVar[0] > xbins[1]) continue;
+      
       if(passCuts[1][WWSEL]){
 	histo_Data->Fill(MVAVar[0], 1.0);
       }
@@ -1842,23 +1978,16 @@ void vbs_ana_anom
                                                histo_Wjets->GetSumOfWeights(),histo_Wjets_CMS_MVAWBoundingUp->GetSumOfWeights());
   }
   histo_Wjets_CMS_MVAWBoundingUp->Scale(histo_Wjets->GetSumOfWeights()/histo_Wjets_CMS_MVAWBoundingUp->GetSumOfWeights());
-  histo_WZ_CMS_WZNLOBoundingUp  ->Scale(histo_WZ   ->GetSumOfWeights()/histo_WZ_CMS_WZNLOBoundingUp  ->GetSumOfWeights());
-
-  for(int i=1; i<=histo_WWewk_ALT->GetNbinsX(); i++){
-    
-    mean = histo_WWewk_ALT			   ->GetBinContent(i);
-    up   = histo_WWewk_ALT_CMS_MVAMETResBoundingUp->GetBinContent(i);
-    diff = TMath::Abs(mean-up);
-    if     (mean-up >0) histo_WWewk_ALT_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
-    else		histo_WWewk_ALT_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
-
-    mean = histo_WWewk			   ->GetBinContent(i);
+  if(histo_WZ_CMS_WZNLOBoundingUp->GetSumOfWeights() > 0) histo_WZ_CMS_WZNLOBoundingUp  ->Scale(histo_WZ   ->GetSumOfWeights()/histo_WZ_CMS_WZNLOBoundingUp  ->GetSumOfWeights());
+  for(int i=1; i<=histo_WWewk->GetNbinsX(); i++){
+    // METRes
+    mean = histo_WWewk			      ->GetBinContent(i);
     up   = histo_WWewk_CMS_MVAMETResBoundingUp->GetBinContent(i);
     diff = TMath::Abs(mean-up);
     if     (mean-up >0) histo_WWewk_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
     else		histo_WWewk_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
 
-    mean = histo_WWqcd			   ->GetBinContent(i);
+    mean = histo_WWqcd			      ->GetBinContent(i);
     up   = histo_WWqcd_CMS_MVAMETResBoundingUp->GetBinContent(i);
     diff = TMath::Abs(mean-up);
     if     (mean-up >0) histo_WWqcd_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
@@ -1876,7 +2005,7 @@ void vbs_ana_anom
     if     (mean-up >0) histo_WZ_CMS_WZNLOBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
     else		histo_WZ_CMS_WZNLOBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
 
-    mean = histo_WS			    ->GetBinContent(i);
+    mean = histo_WS			   ->GetBinContent(i);
     up   = histo_WS_CMS_MVAMETResBoundingUp->GetBinContent(i);
     diff = TMath::Abs(mean-up);
     if     (mean-up >0) histo_WS_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
@@ -1887,7 +2016,82 @@ void vbs_ana_anom
     diff = TMath::Abs(mean-up);
     if     (mean-up >0) histo_VVV_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
     else		histo_VVV_CMS_MVAMETResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    // LepRes
+    mean = histo_WWewk			      ->GetBinContent(i);
+    up   = histo_WWewk_CMS_MVALepResBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WWewk_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WWewk_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    mean = histo_WWqcd			      ->GetBinContent(i);
+    up   = histo_WWqcd_CMS_MVALepResBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WWqcd_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WWqcd_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    mean = histo_WZ			   ->GetBinContent(i);
+    up   = histo_WZ_CMS_MVALepResBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WZ_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WZ_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
   
+    mean = histo_WZ		       ->GetBinContent(i);
+    up   = histo_WZ_CMS_WZNLOBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WZ_CMS_WZNLOBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WZ_CMS_WZNLOBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    mean = histo_WS			   ->GetBinContent(i);
+    up   = histo_WS_CMS_MVALepResBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WS_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WS_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+  
+    mean = histo_VVV			    ->GetBinContent(i);
+    up   = histo_VVV_CMS_MVALepResBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_VVV_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_VVV_CMS_MVALepResBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    // JES
+    mean = histo_WWewk			   ->GetBinContent(i);
+    up   = histo_WWewk_CMS_MVAJESBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WWewk_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WWewk_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    mean = histo_WWqcd			   ->GetBinContent(i);
+    up   = histo_WWqcd_CMS_MVAJESBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WWqcd_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WWqcd_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    mean = histo_WZ			->GetBinContent(i);
+    up   = histo_WZ_CMS_MVAJESBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WZ_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WZ_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+  
+    mean = histo_WZ		       ->GetBinContent(i);
+    up   = histo_WZ_CMS_WZNLOBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WZ_CMS_WZNLOBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WZ_CMS_WZNLOBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    mean = histo_WS			->GetBinContent(i);
+    up   = histo_WS_CMS_MVAJESBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_WS_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_WS_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+  
+    mean = histo_VVV			 ->GetBinContent(i);
+    up   = histo_VVV_CMS_MVAJESBoundingUp->GetBinContent(i);
+    diff = TMath::Abs(mean-up);
+    if     (mean-up >0) histo_VVV_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
+    else		histo_VVV_CMS_MVAJESBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
+
+    // GEN
     mean = histo_Wjets 		         ->GetBinContent(i);
     up   = histo_Wjets_CMS_MVAWBoundingUp->GetBinContent(i);
     diff = TMath::Abs(mean-up);
@@ -1900,6 +2104,7 @@ void vbs_ana_anom
     if     (mean-up >0) histo_WS_CMS_MVAWSBoundingDown->SetBinContent(i,TMath::Max(mean+diff,0.000001));
     else		histo_WS_CMS_MVAWSBoundingDown->SetBinContent(i,TMath::Max(mean-diff,0.000001));
   }
+
   histo_Wjets_CMS_MVAWBoundingDown->Scale(histo_Wjets->GetSumOfWeights()/histo_Wjets_CMS_MVAWBoundingDown->GetSumOfWeights());
   histo_WZ_CMS_WZNLOBoundingDown  ->Scale(histo_WZ   ->GetSumOfWeights()/histo_WZ_CMS_WZNLOBoundingDown  ->GetSumOfWeights());
 
@@ -1907,9 +2112,10 @@ void vbs_ana_anom
   // Produce output cards for shape-based analyses
   //----------------------------------------------------------------------------
   if(showSignalOnly == false){
-  char outputLimits[200];
-  sprintf(outputLimits,"wwss%2s.input_%4s.root",finalStateName,ECMsb.Data());
-  TFile* outFileLimits = new TFile(outputLimits,"recreate");
+    //char outputLimits[200];
+  std::string outputLimits = "ssww_shapes_bin" + label+".root";
+  //sprintf(outputLimits,"wwss%2s.input_%4s.root",finalStateName,ECMsb.Data());
+  TFile* outFileLimits = new TFile(outputLimits.c_str(),"recreate");
   outFileLimits->cd();
   histo_Data	 ->Write();
   histo_WWewk_ALT->Write();
@@ -2027,57 +2233,104 @@ void vbs_ana_anom
   if(NFinal[nBkg] > 0) sprintf(theWWewk_ALTString,"1.000");
   else                 sprintf(theWWewk_ALTString,"  -  ");
 
-  char outputLimitsShape[200];
-  sprintf(outputLimitsShape,"histo_limits_wwss%2s_shape_%4s.txt",finalStateName,ECMsb.Data());
+  //char outputLimitsShape[200];
+  //sprintf(outputLimitsShape,"ss%2s_%4s_datacard_bin%2s.txt",finalStateName,ECMsb.Data(),);
+  std::string outputLimitsShape = "ssww_datacard_bin" + label+".txt";
   ofstream newcardShape;
-  newcardShape.open(outputLimitsShape);
+  newcardShape.open(outputLimitsShape.c_str());
   newcardShape << Form("imax 1 number of channels\n");
   newcardShape << Form("jmax * number of background\n");
   newcardShape << Form("kmax * number of nuisance parameters\n");
   newcardShape << Form("Observation %d\n",(int)nSelectedData[WWSEL+nSelTypes]);
-  newcardShape << Form("shapes *   *   %s  histo_$PROCESS histo_$PROCESS_$SYSTEMATIC\n",outputLimits);
-  newcardShape << Form("shapes data_obs * %s  histo_Data \n",outputLimits);
-  newcardShape << Form("bin wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s\n",finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data());
-  newcardShape << Form("process WWewk_ALT WWewk WWqcd WZ WS VVV Wjets\n");
-  newcardShape << Form("process -1 0 1 2 3 4 5\n");
-  newcardShape << Form("rate %6.3f %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f\n",NFinal[nBkg],NFinal[0],NFinal[1],NFinal[2],NFinal[3],NFinal[4],TMath::Max(NFinal[5],0.0));
-  newcardShape << Form("lumi_%4s                               lnN  %5.3f %5.3f %5.3f %5.3f %5.3f %5.3f   -  \n",ECMsb.Data(),lumiE,lumiE,lumiE,lumiE,lumiE,lumiE); 		     
-  newcardShape << Form("%s                                   shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",effName,theWWewk_ALTString);
-  newcardShape << Form("%s                                   shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",momName,theWWewk_ALTString);
-  newcardShape << Form("CMS_scale_met                        shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",theWWewk_ALTString);
-  newcardShape << Form("CMS_scale_j                          shape   %s   1.000 1.000 1.000 1.000 1.000   -  \n",theWWewk_ALTString);			 
-  newcardShape << Form("pdf_qqbar                              lnN  %5.3f %5.3f %5.3f %5.3f   -     -     -  \n",pdf_qqbar[0],pdf_qqbar[1],pdf_qqbar[2],pdf_qqbar[3]);
-  newcardShape << Form("QCDscale_WWEwk		               lnN  %5.3f %5.3f   -     -     -     -     -  \n",QCDscale_WWewk,QCDscale_WWewk);	
-  newcardShape << Form("QCDscale_VV		               lnN    -     -     -   1.100   -     -     -  \n");		
-  newcardShape << Form("CMS_wwss_WZ3l                          lnN    -     -     -   %5.3f   -     -     -  \n",syst_WZ3l);		
-  if(NFinal[3] > 0)
-  newcardShape << Form("CMS_wwss_WZNLOBounding               shape    -     -     -   1.000   -     -     -  \n");
+  newcardShape << Form("bin wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s wwss%2s%4s\n",finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data(),finalStateName,ECMsb.Data());
+  newcardShape << Form("process WWewk WWqcd WZ WS VVV Wjets\n");
+  newcardShape << Form("process 0 1 2 3 4 5\n");
+  newcardShape << Form("rate  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f\n",NFinal[0],NFinal[1],NFinal[2],NFinal[3],NFinal[4],TMath::Max(NFinal[5],0.0));
+  newcardShape << Form("lumi_%4s                               lnN  %5.3f %5.3f %5.3f %5.3f %5.3f   -  \n",ECMsb.Data(),lumiE,lumiE,lumiE,lumiE,lumiE);	     
+
+  assert(nBinMVA == 1);
+ 
+  newcardShape << string(effName) <<   " lnN ";
+ newcardShape << make_logNormalKappa(histo_WWewk->Integral(),histo_WWewk_CMS_MVALepEffBoundingDown->Integral(),histo_WWewk_CMS_MVALepEffBoundingUp->Integral()); 
+ newcardShape << " " << make_logNormalKappa(histo_WWqcd->Integral(),histo_WWqcd_CMS_MVALepEffBoundingDown->Integral(),histo_WWqcd_CMS_MVALepEffBoundingUp->Integral()); 
+ newcardShape << " " << make_logNormalKappa(histo_WZ->Integral(),histo_WZ_CMS_MVALepEffBoundingDown->Integral(),histo_WZ_CMS_MVALepEffBoundingUp->Integral());
+ newcardShape << " " << make_logNormalKappa(histo_WS->Integral(),histo_WS_CMS_MVALepEffBoundingDown->Integral(),histo_WS_CMS_MVALepEffBoundingUp->Integral());
+ newcardShape  << " " << make_logNormalKappa(histo_VVV->Integral(),histo_VVV_CMS_MVALepEffBoundingDown->Integral(), histo_VVV_CMS_MVALepEffBoundingUp->Integral());
+ newcardShape << " - " << std::endl;
+
+
+ newcardShape << string(momName) <<   " lnN ";
+ std::cout << "histo_WWewk->Integral() = " << histo_WWewk->Integral() << std::endl;
+ std::cout << "histo_WWewk_CMS_MVALepResBoundingDown->Integral() = " << histo_WWewk_CMS_MVALepResBoundingDown->Integral() << std::endl;
+ std::cout << "histo_WWewk_CMS_MVALepResBoundingUp->Integral() = " << histo_WWewk_CMS_MVALepResBoundingUp->Integral() << std::endl;
+
+ newcardShape << make_logNormalKappa(histo_WWewk->Integral(),histo_WWewk_CMS_MVALepResBoundingDown->Integral(),histo_WWewk_CMS_MVALepResBoundingUp->Integral()); 
+  newcardShape << " " << make_logNormalKappa(histo_WWqcd->Integral(),histo_WWqcd_CMS_MVALepResBoundingDown->Integral(),histo_WWqcd_CMS_MVALepResBoundingUp->Integral());
+  newcardShape << " " << make_logNormalKappa(histo_WZ->Integral(),histo_WZ_CMS_MVALepResBoundingDown->Integral(),histo_WZ_CMS_MVALepResBoundingUp->Integral());
+  newcardShape << " " << make_logNormalKappa(histo_WS->Integral(),histo_WS_CMS_MVALepResBoundingDown->Integral(),histo_WS_CMS_MVALepResBoundingUp->Integral());
+  newcardShape  << " " << make_logNormalKappa(histo_VVV->Integral(),histo_VVV_CMS_MVALepResBoundingDown->Integral(),histo_VVV_CMS_MVALepResBoundingUp->Integral()) ;
+  newcardShape << " - " << std::endl;
+  
+
+
+  newcardShape << "CMS_scale_met" <<   " lnN ";
+  newcardShape << make_logNormalKappa(histo_WWewk->Integral(),histo_WWewk_CMS_MVAMETResBoundingDown->Integral(),histo_WWewk_CMS_MVAMETResBoundingUp->Integral()); 
+  newcardShape << " " << make_logNormalKappa(histo_WWqcd->Integral(),histo_WWqcd_CMS_MVAMETResBoundingDown->Integral(),histo_WWqcd_CMS_MVAMETResBoundingUp->Integral());
+  newcardShape << " " << make_logNormalKappa(histo_WZ->Integral(),histo_WZ_CMS_MVAMETResBoundingDown->Integral(), histo_WZ_CMS_MVAMETResBoundingUp->Integral());
+  newcardShape << " " <<make_logNormalKappa(histo_WS->Integral(),histo_WS_CMS_MVAMETResBoundingDown->Integral(), histo_WS_CMS_MVAMETResBoundingUp->Integral());
+  newcardShape  << " " <<make_logNormalKappa(histo_VVV->Integral(),histo_VVV_CMS_MVAMETResBoundingDown->Integral(),histo_VVV_CMS_MVAMETResBoundingUp->Integral()) ;
+  newcardShape << " - " << std::endl;
+
+  newcardShape << "CMS_scale_j" <<   " lnN ";
+  newcardShape << make_logNormalKappa(histo_WWewk->Integral(),histo_WWewk_CMS_MVAJESBoundingDown->Integral(),histo_WWewk_CMS_MVAJESBoundingUp->Integral()); 
+  newcardShape << " " << make_logNormalKappa(histo_WWqcd->Integral(),histo_WWqcd_CMS_MVAJESBoundingDown->Integral(),histo_WWqcd_CMS_MVAJESBoundingUp->Integral());
+  newcardShape << " " << make_logNormalKappa(histo_WZ->Integral(),histo_WZ_CMS_MVAJESBoundingDown->Integral(), histo_WZ_CMS_MVAJESBoundingUp->Integral());
+  newcardShape << " " <<make_logNormalKappa(histo_WS->Integral(),histo_WS_CMS_MVAJESBoundingDown->Integral(),histo_WS_CMS_MVAJESBoundingUp->Integral());
+  newcardShape  << " " <<make_logNormalKappa(histo_VVV->Integral(),histo_VVV_CMS_MVAJESBoundingDown->Integral(),histo_VVV_CMS_MVAJESBoundingUp->Integral()) ;
+  newcardShape << " - " << std::endl;
+
+  newcardShape << Form("pdf_qqbar                              lnN   %5.3f %5.3f %5.3f   -     -     -  \n",pdf_qqbar[1],pdf_qqbar[2],pdf_qqbar[3]);
+  newcardShape << Form("QCDscale_WWEwk		               lnN   %5.3f   -     -     -     -     -  \n",QCDscale_WWewk);	
+  newcardShape << Form("QCDscale_VV		               lnN    -     -   1.100   -     -     -  \n");		
+  newcardShape << Form("CMS_wwss_WZ3l                          lnN    -     -   %5.3f   -     -     -  \n",syst_WZ3l);		
+  if(NFinal[3] > 0){
+    newcardShape << "CMS_wwss_WZNLOBounding               lnN    -     -   " <<
+      make_logNormalKappa(histo_WZ->Integral(), histo_WZ_CMS_WZNLOBoundingDown->Integral(), histo_WZ_CMS_WZNLOBoundingUp->Integral()) << "   -     -     -  " << std::endl;
+  }
+  if(NFinal[4] > 0){
+    newcardShape << "CMS_wwss_MVAWSBounding               lnN    -     -     - " 
+		 <<   make_logNormalKappa(histo_WS->Integral(),histo_WS_CMS_MVAWSBoundingDown->Integral(), histo_WS_CMS_MVAWSBoundingUp->Integral()) 
+		 << "   -     -  " << std::endl;		
+  }
+
   if(NFinal[4] > 0)
-  newcardShape << Form("CMS_wwss_MVAWSBounding               shape    -     -     -     -   1.000   -     -  \n");		
-  if(NFinal[4] > 0)
-  newcardShape << Form("QCDscale_VVV		               lnN    -     -     -     -     -   1.500   -  \n");		
+  newcardShape << Form("QCDscale_VVV		               lnN    -     -     -     -   1.500   -  \n");		
+
   if(NFinal[5] > 0)
-  newcardShape << Form("CMS_FakeRate                           lnN    -     -     -     -     -	    -   %5.3f\n",WjetsSyst);  
+  newcardShape << Form("CMS_FakeRate                           lnN    -     -     -     -	    -   %5.3f\n",WjetsSyst);  
+
   if(NFinal[5] > 0)
-  newcardShape << Form("CMS_wwss_MVAWBounding                shape    -     -     -	-     -     -   1.000\n");
+    newcardShape << "CMS_wwss_MVAWBounding                lnN    -     -	-     -     -   " <<   make_logNormalKappa(histo_Wjets->Integral(),histo_Wjets_CMS_MVAWBoundingDown->Integral(),histo_Wjets_CMS_MVAWBoundingUp->Integral())<< std::endl;
+
   if(useFullStatTemplates == false){
-    if(NFinal[nBkg] > 0) newcardShape << Form("CMS_wwss%s_MVAWWewk_ALTStatBounding_%s  shape  1.000   -     -	  -	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[0]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s      shape    -   1.000   -	  -	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[3]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s      shape    -     -   1.000   -	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[2]    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s	       shape    -     -     -	1.000	-     -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[4]    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s	       shape    -     -     -	  -   1.000   -     -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[1]    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s        shape    -     -     -	  -	-   1.000   -  \n",finalStateName,ECMsb.Data());
-    if(NFinal[5]    > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s      shape    -     -     -	  -	-     -   1.000\n",finalStateName,ECMsb.Data());
+    assert(0);
+    if(NFinal[0]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s      lnN  1.000   -	  -	-     -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[3]    > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s      lnN    -   1.000   -	-     -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[2]    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s	       lnN    -     -	1.000	-     -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[4]    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s	       lnN    -     -	  -   1.000   -     -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[1]    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s        lnN    -     -	  -	-   1.000   -  \n",finalStateName,ECMsb.Data());
+    if(NFinal[5]    > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s      lnN    -     -	  -	-     -   1.000\n",finalStateName,ECMsb.Data());
   } else {
-    for(int nb=1; nb<=nBinMVA; nb++){
-      if(NFinal[nBkg] > 0 && histo_WWewk_ALT->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewk_ALTStatBounding_%s_Bin%d  shape  1.000   -     -     -     -     -	 -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[0]    > 0 && histo_WWewk->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWWewkStatBounding_%s_Bin%d          shape    -   1.000   -     -     -     -	     -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[1]    > 0 && histo_WWqcd->GetBinContent(nb)   > 0) newcardShape << Form("CMS_wwss%s_MVAWWqcdStatBounding_%s_Bin%d           shape    -     -   1.000   -     -     -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[2]    > 0 && histo_WZ->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWZStatBounding_%s_Bin%d                shape    -     -	 -   1.000   -     -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[3]    > 0 && histo_WS->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAWSStatBounding_%s_Bin%d                shape    -     -	 -     -   1.000   -	  -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[4]    > 0 && histo_VVV->GetBinContent(nb)    > 0) newcardShape << Form("CMS_wwss%s_MVAVVVStatBounding_%s_Bin%d              shape    -     -	 -     -     -   1.000   -  \n",finalStateName,ECMsb.Data(),nb-1);
-      if(NFinal[5]    > 0 && histo_Wjets->GetBinContent(nb) > 0) newcardShape << Form("CMS_wwss%s_MVAWjetsStatBounding_%s_Bin%d             shape    -     -	 -     -     -     -   1.000\n",finalStateName,ECMsb.Data(),nb-1);
-    }
+
+    assert(nBinMVA == 1);
+
+    if(NFinal[0]    > 0 && histo_WWewk->Integral()    > 0) newcardShape << "CMS_wwss"<< finalStateName <<  "_MVAWWewkStatBounding_" << ECMsb.Data()<< "_Bin0  lnN " << make_logNormalKappa(histo_WWewk->Integral(),histo_WWewk_CMS_MVAWWewkStatBoundingBinDown[0]->Integral(),histo_WWewk_CMS_MVAWWewkStatBoundingBinUp[0]->Integral())   << "   -     -     -     -	     -  " << std::endl;
+    if(NFinal[1]    > 0 && histo_WWqcd->Integral()    > 0) newcardShape << "CMS_wwss"<< finalStateName <<  "_MVAWWqcdStatBounding_" << ECMsb.Data()<< "_Bin0  lnN - " << make_logNormalKappa(histo_WWqcd->Integral(),histo_WWqcd_CMS_MVAWWqcdStatBoundingBinDown[0]->Integral(),histo_WWqcd_CMS_MVAWWqcdStatBoundingBinUp[0]->Integral())  << "   -     -     -	     -  " << std::endl;
+    if(NFinal[2]    > 0 && histo_WZ->Integral()    > 0) newcardShape << "CMS_wwss"<< finalStateName <<  "_MVAWZStatBounding_" << ECMsb.Data()<< "_Bin0  lnN - - " << make_logNormalKappa(histo_WZ->Integral(),histo_WZ_CMS_MVAWZStatBoundingBinDown[0]->Integral(),histo_WZ_CMS_MVAWZStatBoundingBinUp[0]->Integral())  << "      -     -	     -  " << std::endl;
+    if(NFinal[3]    > 0 && histo_WS->Integral()    > 0) newcardShape << "CMS_wwss"<< finalStateName <<  "_MVAWSStatBounding_" << ECMsb.Data()<< "_Bin0  lnN - - - " << make_logNormalKappa(histo_WS->Integral(),histo_WS_CMS_MVAWSStatBoundingBinDown[0]->Integral(),histo_WS_CMS_MVAWSStatBoundingBinUp[0]->Integral())  << "       -	     -  " << std::endl;
+    if(NFinal[4]    > 0 && histo_VVV->Integral()    > 0) newcardShape << "CMS_wwss"<< finalStateName <<  "_MVAVVVStatBounding_" << ECMsb.Data()<< "_Bin0  lnN - - - - " << make_logNormalKappa(histo_VVV->Integral(),histo_VVV_CMS_MVAVVVStatBoundingBinDown[0]->Integral(),histo_VVV_CMS_MVAVVVStatBoundingBinUp[0]->Integral())  << "   -     " << std::endl;
+    if(NFinal[5]    > 0 && histo_Wjets->Integral()    > 0) newcardShape << "CMS_wwss"<< finalStateName <<  "_MVAWjetsStatBounding_" << ECMsb.Data()<< "_Bin0  lnN - - - - - " << make_logNormalKappa(histo_Wjets->Integral(),histo_Wjets_CMS_MVAWjetsStatBoundingBinDown[0]->Integral(),histo_Wjets_CMS_MVAWjetsStatBoundingBinUp[0]->Integral())   << std::endl;
+
   }
   newcardShape.close();
   }
