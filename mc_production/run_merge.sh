@@ -19,7 +19,7 @@ echo $output_name
 
 counter=1
 label=1
-for file in `/afs/cern.ch/project/eos/installation/0.2.31/bin/eos.select ls $input_dir`
+for file in `/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select ls $input_dir`
   do
 
   file_list="\"root://eoscms.cern.ch/${input_dir}${file}\",${file_list}"
@@ -27,7 +27,7 @@ for file in `/afs/cern.ch/project/eos/installation/0.2.31/bin/eos.select ls $inp
       then
       root  -l -b -q merge.C+\(${file_list}\"${output_name}_${label}\"\)
       counter=0
-      /afs/cern.ch/project/eos/installation/0.2.31/bin/eos.select cp ${output_name}_${label}_000.root $output_dir
+      /afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select cp ${output_name}_${label}_000.root $output_dir
       rm ${output_name}_${label}_000.root
       label=$(($label+1))
       file_list=""

@@ -36,6 +36,7 @@ date
 export SCRAM_ARCH=slc5_amd64_gcc462
 
 cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_13_patch3/src/
+#cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_11/src/
 
 eval `scramv1 runtime -sh`
 
@@ -128,7 +129,7 @@ if ! cat *py | grep  Pythia6HadronizerFilter >& /dev/null; then
     exit
 fi
 
-/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select cp STEP2_RAW2DIGI_L1Reco_RECO.root ${output_dir}STEP2_RAW2DIGI_L1Reco_RECO_$where_to_start.root
+/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select cp STEP2_RAW2DIGI_L1Reco_RECO.root ${output_dir}STEP2_RAW2DIGI_L1Reco_RECO_$where_to_start.root
 
 echo date
 date

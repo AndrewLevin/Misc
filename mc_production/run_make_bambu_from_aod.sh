@@ -1,5 +1,5 @@
-input_dir=/store/user/anlevin/data/AOD/qed_2_qcd_99_no_matching_v2/
-output_dir=/eos/cms/store/user/anlevin/data/BAMBU/qed_2_qcd_99_no_matching_unmerged_v2/
+input_dir=/store/user/anlevin/data/AOD/qed_4_qcd_99_ls0ls1_v4/
+output_dir=/eos/cms/store/user/anlevin/data/BAMBU/qed_4_qcd_99_ls0ls1_v4_unmerged/
 
 echo \$input_dir
 echo $input_dir
@@ -7,13 +7,13 @@ echo $input_dir
 echo \$output_dir
 echo $output_dir
 
-if ! /afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select ls $output_dir >& /dev/null
+if ! /afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select ls $output_dir >& /dev/null
     then
     echo "output directory does not exist, exiting"
     exit
 fi
 
-outputdirsize=`/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select ls $output_dir | wc -l`
+outputdirsize=`/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select ls $output_dir | wc -l`
 
 if((outputdirsize!=0))
     then
@@ -23,7 +23,7 @@ fi
 
 sleep 15
 
-for file in `/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select ls $input_dir`
+for file in `/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select ls $input_dir`
   do
   bsub -q 8nh "bash make_bambu_from_aod.sh $input_dir/$file $output_dir"
 done

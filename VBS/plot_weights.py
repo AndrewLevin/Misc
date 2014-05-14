@@ -20,8 +20,8 @@ print len(binning)
 #        binning.extend([k*   pow(10,p)])
 
 factor=1.02
-min_bin=0.001
-min_width=0.001
+min_bin=0.000001
+min_width=0.000001
 
 current_bin=min_bin
 current_width=min_width
@@ -38,7 +38,7 @@ for i in binning:
     print i
 
 for line in f_input:
-    w[0]=float(line)/1.5853000e-05
+    w[0]=float(line)/3.5925000e-04
     #print w[0]
     mytree.Fill()
 

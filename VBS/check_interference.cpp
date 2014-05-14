@@ -39,6 +39,7 @@ TLorentzVector buildP (const LHEF::HEPEUP & event, int iPart)
 }
 
 
+
 int main(int argc, char ** argv) 
 {
   if(argc < 5)
@@ -59,11 +60,12 @@ int main(int argc, char ** argv)
 
   std::string outputfilename = argv[4];
 
-  TH1F mjj_ewk ("mjj_ewk", "mjj_ewk", 10, 500, 3000) ;
-  TH1F mjj_qcd ("mjj_qcd", "mjj_qcd", 10, 500, 3000) ;
-  TH1F mjj_ewk_plus_qcd ("mjj_ewk_plus_qcd", "mjj_ewk_plus_qcd", 10, 500, 3000) ;
+  TH1F mjj_ewk ("mjj_ewk", "mjj_ewk", 10, 500, 2000) ;
+  TH1F mjj_qcd ("mjj_qcd", "mjj_qcd", 10, 500, 2000) ;
+  TH1F mjj_ewk_plus_qcd ("mjj_ewk_plus_qcd", "mjj_ewk_plus_qcd", 10, 500, 2000) ;
 
   int n_events_ewk=0;
+  int n_sel_events_ewk=0;
 
   //PG loop over input events
   while (reader_ewk.readEvent ()) 
@@ -71,7 +73,10 @@ int main(int argc, char ** argv)
 
       n_events_ewk++;
 
+
       std::vector<TLorentzVector> quarks;
+      std::vector<TLorentzVector> leptons;
+      std::vector<TLorentzVector> neutrinos;
 
       if ( reader_ewk.outsideBlock.length() ) std::cout << reader_ewk.outsideBlock;
 
@@ -86,10 +91,38 @@ int main(int argc, char ** argv)
                    TLorentzVector vec = buildP (reader_ewk.hepeup, iPart) ;
                    quarks.push_back(vec);
                  }
+               if (abs (reader_ewk.hepeup.IDUP.at (iPart)) == 12 || abs (reader_ewk.hepeup.IDUP.at (iPart)) == 14 || abs (reader_ewk.hepeup.IDUP.at (iPart)) == 16 )
+                 {
+                   TLorentzVector vec = buildP (reader_ewk.hepeup, iPart) ;
+                   neutrinos.push_back(vec);
+                 }
+               if (abs (reader_ewk.hepeup.IDUP.at (iPart)) == 11 || abs (reader_ewk.hepeup.IDUP.at (iPart)) == 13 /*|| abs (reader_ewk.hepeup.IDUP.at (iPart)) == 15 */ )
+                 {
+                   TLorentzVector vec = buildP (reader_ewk.hepeup, iPart) ;
+                   leptons.push_back(vec);
+                 }
  
              } // outgoing particles
         } // loop over particles in the event
 
+      int n_leptons_with_pt_gt_20 = 0;
+
+      for (int i = 0; i < leptons.size(); i++){
+	if (leptons[i].Pt() > 20) n_leptons_with_pt_gt_20++;
+      }
+      
+      if (n_leptons_with_pt_gt_20 < 2)
+	continue;
+
+
+      TLorentzVector neutrinos_sum;
+
+      for (int i=0; i < neutrinos.size(); i++){
+	neutrinos_sum+=neutrinos[i];
+      }
+
+      if (neutrinos_sum.Pt() < 30)
+	continue;
 
       assert(quarks.size() == 2);
 
@@ -98,14 +131,26 @@ int main(int argc, char ** argv)
 	continue;
       }
 
+      if(abs(quarks[0].Eta() - quarks[1].Eta()) < 3.5)
+	 continue;
+
+      if(quarks[0].Pt() < 30)
+	continue;
+
+      if(quarks[1].Pt() < 30)
+	continue;
+
+      n_sel_events_ewk++;
       mjj_ewk.Fill( (quarks[0] + quarks[1]).M() );
 
     } //PG loop over input events
 
 
   std::cout << "n_events_ewk = " << n_events_ewk << std::endl;
+  std::cout << "n_sel_events_ewk = " << n_sel_events_ewk << std::endl;
 
   int n_events_qcd=0;
+  int n_sel_events_qcd=0;
 
   //PG loop over input events
   while (reader_qcd.readEvent ()) 
@@ -114,6 +159,8 @@ int main(int argc, char ** argv)
       n_events_qcd++;
 
       std::vector<TLorentzVector> quarks;
+      std::vector<TLorentzVector> neutrinos;
+      std::vector<TLorentzVector> leptons;
 
       if ( reader_qcd.outsideBlock.length() ) std::cout << reader_qcd.outsideBlock;
 
@@ -129,28 +176,65 @@ int main(int argc, char ** argv)
                    TLorentzVector vec = buildP (reader_qcd.hepeup, iPart) ;
                    quarks.push_back(vec);
                  }
- 
+                if (abs (reader_qcd.hepeup.IDUP.at (iPart)) == 12 || abs (reader_qcd.hepeup.IDUP.at (iPart)) == 14 || abs (reader_qcd.hepeup.IDUP.at (iPart)) == 16 )
+                 {
+                   TLorentzVector vec = buildP (reader_qcd.hepeup, iPart) ;
+                   neutrinos.push_back(vec);
+                 }
+                if (abs (reader_qcd.hepeup.IDUP.at (iPart)) == 11 || abs (reader_qcd.hepeup.IDUP.at (iPart)) == 13 /*|| abs (reader_qcd.hepeup.IDUP.at (iPart)) == 15 */)
+                 {
+                   TLorentzVector vec = buildP (reader_qcd.hepeup, iPart) ;
+                   leptons.push_back(vec);
+                 }
              } // outgoing particles
         } // loop over particles in the event
 
+      int n_leptons_with_pt_gt_20 = 0;
+
+      for (int i = 0; i < leptons.size(); i++){
+	if (leptons[i].Pt() > 20) n_leptons_with_pt_gt_20++;
+      }
+      
+      if (n_leptons_with_pt_gt_20 < 2)
+	continue;
+
+
+      TLorentzVector neutrinos_sum;
+
+      for (int i=0; i < neutrinos.size(); i++){
+	neutrinos_sum+=neutrinos[i];
+      }
+
+      if (neutrinos_sum.Pt() < 30)
+	continue;
 
       assert(quarks.size() == 2);
 
       if(quarks.size() != 2){
-	std::cout << "quarks.size() = " << quarks.size() << std::endl;
 	std::cout << "found event without exactly two quarks" << std::endl;
-	assert(0);
 	continue;
       }
 
+      if(abs(quarks[0].Eta() - quarks[1].Eta()) < 3.5)
+	 continue;
+
+      if(quarks[0].Pt() < 30)
+	continue;
+
+      if(quarks[1].Pt() < 30)
+	continue;
+
+      n_sel_events_qcd++;
       mjj_qcd.Fill( (quarks[0] + quarks[1]).M() );
 
     } //PG loop over input events
 
 
   std::cout << "n_events_qcd = " << n_events_qcd << std::endl;
+  std::cout << "n_sel_events_qcd = " << n_sel_events_qcd << std::endl;
 
   int n_events_ewk_plus_qcd=0;
+  int n_sel_events_ewk_plus_qcd=0;
 
   //PG loop over input events
   while (reader_ewk_plus_qcd.readEvent ()) 
@@ -159,6 +243,9 @@ int main(int argc, char ** argv)
       n_events_ewk_plus_qcd++;
 
       std::vector<TLorentzVector> quarks;
+      std::vector<TLorentzVector> neutrinos;
+      std::vector<TLorentzVector> leptons;
+      
 
       if ( reader_ewk_plus_qcd.outsideBlock.length() ) std::cout << reader_ewk_plus_qcd.outsideBlock;
 
@@ -173,10 +260,36 @@ int main(int argc, char ** argv)
                    TLorentzVector vec = buildP (reader_ewk_plus_qcd.hepeup, iPart) ;
                    quarks.push_back(vec);
                  }
- 
+                if (abs (reader_ewk_plus_qcd.hepeup.IDUP.at (iPart)) == 12 || abs (reader_ewk_plus_qcd.hepeup.IDUP.at (iPart)) == 14 || abs (reader_ewk_plus_qcd.hepeup.IDUP.at (iPart)) == 16 )
+                 {
+                   TLorentzVector vec = buildP (reader_ewk_plus_qcd.hepeup, iPart) ;
+                   neutrinos.push_back(vec);
+                 }
+                if (abs (reader_ewk_plus_qcd.hepeup.IDUP.at (iPart)) == 11 || abs (reader_ewk_plus_qcd.hepeup.IDUP.at (iPart)) == 13 /*|| abs (reader_ewk_plus_qcd.hepeup.IDUP.at (iPart)) == 15 */ )
+                 {
+                   TLorentzVector vec = buildP (reader_ewk_plus_qcd.hepeup, iPart) ;
+                   leptons.push_back(vec);
+                 }
              } // outgoing particles
         } // loop over particles in the event
 
+      int n_leptons_with_pt_gt_20 = 0;
+
+      for (int i = 0; i < leptons.size(); i++){
+	if (leptons[i].Pt() > 20) n_leptons_with_pt_gt_20++;
+      }
+      
+      if (n_leptons_with_pt_gt_20 < 2)
+	continue;
+
+     TLorentzVector neutrinos_sum;
+
+      for (int i=0; i < neutrinos.size(); i++){
+	neutrinos_sum+=neutrinos[i];
+      }
+
+      if (neutrinos_sum.Pt() < 30)
+	continue;
 
       assert(quarks.size() == 2);
 
@@ -185,12 +298,24 @@ int main(int argc, char ** argv)
 	continue;
       }
 
+      if(abs(quarks[0].Eta() - quarks[1].Eta()) < 3.5)
+	 continue;
+
+      if(quarks[0].Pt() < 30)
+	continue;
+
+      if(quarks[1].Pt() < 30)
+	continue;
+ 
+      n_sel_events_ewk_plus_qcd++;
       mjj_ewk_plus_qcd.Fill( (quarks[0] + quarks[1]).M() );
+
 
     } //PG loop over input events
 
 
   std::cout << "n_events_ewk_plus_qcd = " << n_events_ewk_plus_qcd << std::endl;
+  std::cout << "n_sel_events_ewk_plus_qcd = " << n_sel_events_ewk_plus_qcd << std::endl;
 
   TFile f (outputfilename.c_str(), "recreate") ;
   mjj_ewk.Write();
