@@ -12,6 +12,7 @@ echo pwd
 pwd
 
 cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_13_patch3/
+#cd /afs/cern.ch/work/a/anlevin/UserCode/mc_production/CMSSW_5_3_11/
 eval `scramv1 runtime -sh`
 
 cd -
@@ -38,4 +39,4 @@ outputfile=`echo $inputfile | sed "s/\//___/" | sed "s/\//___/" | sed "s/\//___/
 echo \$outputfile
 echo $outputfile
 
-/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select cp XX-MITDATASET-XX_000.root ${output_dir}$outputfile
+/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select cp XX-MITDATASET-XX_000.root ${output_dir}$outputfile

@@ -84,8 +84,9 @@ leg.AddEntry(hist_combined,label_combined,"l")
 leg.AddEntry(hist_ewk_plus_qcd,label_ewk_plus_qcd,"l")
 leg.SetFillColor(0)
 
-hist_ewk_plus_qcd.Draw()
-hist_combined.Draw("SAME")
+hist_combined.Draw()
+hist_ewk_plus_qcd.Draw("SAME")
+
 
 leg.Draw("SAME")
 
