@@ -1,5 +1,10 @@
-nevents=$1
-seed=$2
+gridpack_filename=$1
+nevents=$2
+seed=$3
+output_dir=$4
+
+echo \$gridpack_filename
+echo $gridpack_filename
 
 echo \$nevents
 echo $nevents
@@ -7,10 +12,13 @@ echo $nevents
 echo \$seed
 echo $seed
 
+echo \$output_dir
+echo $output_dir
+
 echo "copying gridpack"
 echo ""
 
-cp /afs/cern.ch/work/a/anlevin/UserCode/madgraph_generation/run_01_gridpack.tar.gz .
+cp $gridpack_filename run_01_gridpack.tar.gz
 
 echo""
 echo "untaring gridpack"
@@ -44,7 +52,7 @@ echo ""
 echo "begin copying output file"
 echo ""
 
-cp events.lhe /afs/cern.ch/work/a/anlevin/data/lhe/unmerged_wz/events_${seed}.lhe
+cp events.lhe ${output_dir}events_${seed}.lhe
 
 echo ""
 echo "finished copying output file"

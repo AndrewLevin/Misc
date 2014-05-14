@@ -71,41 +71,32 @@ int main(int argc, char ** argv)
 	       if (abs (reader.hepeup.IDUP.at (iPart)) == 22)
 		 std::cout << "photon" << std::endl;
 
-               if (abs (reader.hepeup.IDUP.at (iPart)) == 11 ||  abs (reader.hepeup.IDUP.at (iPart)) == 13 || abs (reader.hepeup.IDUP.at (iPart)) == 15) 
+               if (abs (reader.hepeup.IDUP.at (iPart)) == 11 ||  abs (reader.hepeup.IDUP.at (iPart)) == 13 ||  abs (reader.hepeup.IDUP.at (iPart)) == 15) 
                  {     
 		   int moth1 = reader.hepeup.IDUP.at (    (reader.hepeup.MOTHUP.at (iPart)).first -1     );
 		   int moth2 = reader.hepeup.IDUP.at (    (reader.hepeup.MOTHUP.at (iPart)).second -1     );
+		   //assert (moth1 == moth2);
 		   std::cout << "moth1 = " << moth1 << std::endl;
 		   std::cout << "moth2 = " << moth2 << std::endl;
-		   if (moth1 != moth2)
-		     continue;
-		   //assert (abs(moth1) == abs(moth2));
-
-		   if(moth1 == 23 /*|| abs(moth1) == 1 || abs(moth1) == 2 || abs(moth2) == 3 || abs(moth1) == 4 || abs(moth1) == 5 || abs(moth1) == 6 */){
-		     z_lepton_vector.push_back(iPart);
+		   if(abs(moth1) == abs(moth2) && abs(moth1)!=24){
+		    z_lepton_vector.push_back(iPart);
 		   }
                  }
              } // outgoing particles
         } // loop over particles in the event
 
-      assert(z_lepton_vector.size() == 2 || z_lepton_vector.size() == 0);
 
-      if ( z_lepton_vector.size() > 0){
+  //assert(z_lepton_vector.size() == 2 || z_lepton_vector.size() == 0);
+
+      if ( z_lepton_vector.size() > 1){
 	n_events_with_z+=1;
 	TLorentzVector lep1 = buildP (reader.hepeup, z_lepton_vector[0]) ;
 	TLorentzVector lep2 = buildP (reader.hepeup, z_lepton_vector[1]) ;
 	
 	mll.Fill((lep1+lep2).M());
-	/*
-	if ((lep1+lep2).M() < 12){
-	  std::cout << "reader.hepeup.IDUP.at (z_lepton_vector[0]) = " << reader.hepeup.IDUP.at (z_lepton_vector[0]) << std::endl;
-	  std::cout << "reader.hepeup.IDUP.at (z_lepton_vector[1]) = " << reader.hepeup.IDUP.at (z_lepton_vector[1]) << std::endl;
 
-	  std::cout << "(lep1+lep2).M() = " << (lep1+lep2).M() << std::endl;
-	  std::cout << "n_total_events = " << n_total_events << std::endl;
-	  exit(0);
-	}
-	*/
+	std::cout << "(lep1+lep2).M() = " << (lep1+lep2).M() << std::endl;
+
       }
 
     } //PG loop over input events

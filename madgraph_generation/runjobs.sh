@@ -1,11 +1,11 @@
 #!/bin/bash
 
 
-#do not set the seed to 0, then madgraph will assign the seed automatically
-i=1
-imax=20
+i=0
+imax=1
 
-output_dir="/scratch/anlevin/data/lhe/qed_4_qcd_99_ls0ls1_v5/"
+#output_dir="/scratch/anlevin/data/lhe/qed_4_qcd_99_ls0ls1_grid/"
+output_dir="/afs/cern.ch/work/a/anlevin/data/lhe/qed_4_qcd_99_unmerged/"
 
 gen_command1="'generate p p > w+ w+ p p QED=4 QCD=99, w+ > l+ vl'"
 gen_command2="'add process p p > w- w- p p QED=4 QCD=99, w- > l- vl~'"
@@ -13,10 +13,8 @@ gen_command2="'add process p p > w- w- p p QED=4 QCD=99, w- > l- vl~'"
 model="SM_LS01_LT012_LM0167"
 #model="sm"
 
-#reweight_file="/scratch/anlevin/UserCode/madgraph_generation/reweight_card_ls_lm_lt.dat"
-reweight_file="/scratch/anlevin/UserCode/madgraph_generation/reweight_card_ls0ls1.dat"
 #reweight_file="/scratch/anlevin/UserCode/madgraph_generation/reweight_card_lt0lt1lt2.dat"
-#reweight_file="NONE"
+reweight_file="NONE"
 
 run_card="/scratch/anlevin/UserCode/madgraph_generation/run_card_no_matching.dat"
 param_card="/scratch/anlevin/UserCode/madgraph_generation/param_card_lt012.dat"
@@ -56,12 +54,18 @@ if ! ls $param_card >& /dev/null
     exit
 fi
 
+if ! ls $output_dir >& /dev/null
+    then
+    echo "output directory does not exist, exiting"
+    exit
+fi
+
 sleep 15
 
 if hostname | grep 'lxplus.*\.cern\.ch' >& /dev/null; then 
     echo "running on lxplus"
     while((i<=imax)); do
-	bsub -q 1nd "bash /afs/cern.ch/work/a/anlevin/UserCode/madgraph_generation/make_lhe_weights.sh $i"
+	bsub -q 1nd "bash /afs/cern.ch/work/a/anlevin/UserCode/madgraph_generation/make_lhe_weights.sh $gen_command1 $gen_command2 $i $output_dir $reweight_file $model $run_card $param_card"
 	i=$(($i+1))
     done
 elif hostname | grep 'mit\.edu' &> /dev/null; then
