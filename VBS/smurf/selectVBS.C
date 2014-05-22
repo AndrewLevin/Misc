@@ -21,7 +21,11 @@ void selectVBS
  )
 {
 
-  float lumi = 20;
+  gROOT->ProcessLine(".L /home/ceballos/releases/CMSSW_5_2_8/src/Smurf/Core/LeptonScaleLookup.cc+");
+
+  float lumi = 1;
+
+  TFile * f = new TFile("outputfile.root","RECREATE");
 
   TH1F * mlljj_hist = new TH1F("mlljj","mlljj",100,0,3000);
 
@@ -44,13 +48,23 @@ void selectVBS
       std::cout << "--- reading event " << i << " out of " << nBgd << std::endl;
     bgdEvent.tree_->GetEntry(i);
 
-    if (!(bgdEvent.cuts_ & SmurfTree::Lep1FullSelection))
+
+    if(bgdEvent.dstype_ == SmurfTree::data)
       continue;
 
-    if (!(bgdEvent.cuts_ & SmurfTree::Lep2FullSelection))
+    if(bgdEvent.dilep_.M() < 200)
       continue;
 
-    if (!(bgdEvent.cuts_ & SmurfTree::TopVeto))
+    if ((bgdEvent.cuts_ & SmurfTree::Lep1FullSelection) != SmurfTree::Lep1FullSelection)
+      continue;
+
+    if ((bgdEvent.cuts_ & SmurfTree::Lep2FullSelection) != SmurfTree::Lep2FullSelection)
+      continue;
+
+    if ((bgdEvent.cuts_ & SmurfTree::TopVeto) != SmurfTree::TopVeto)
+      continue;
+
+    if ((bgdEvent.cuts_ & SmurfTree::ExtraLeptonVeto)!= SmurfTree::ExtraLeptonVeto)
       continue;
 
     if(bgdEvent.jet1_.Pt() < 50)
@@ -76,6 +90,7 @@ void selectVBS
 
     mlljj_hist->Fill((bgdEvent.lep1_+bgdEvent.lep2_+bgdEvent.jet1_+bgdEvent.jet2_).M(),bgdEvent.scale1fb_*lumi);
 
+    std::cout << "i = " << i << std::endl;
     std::cout << "(bgdEvent.lep1_+bgdEvent.lep2_+bgdEvent.jet1_+bgdEvent.jet2_).M() = " << (bgdEvent.lep1_+bgdEvent.lep2_+bgdEvent.jet1_+bgdEvent.jet2_).M() << std::endl; 
     std::cout << "bgdEvent.scale1fb_ = " << bgdEvent.scale1fb_  << std::endl;
     std::cout << "bgdEvent.dstype_ = " << bgdEvent.dstype_ << std::endl;
