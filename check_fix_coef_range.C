@@ -1,3 +1,7 @@
+//try to check Figure 9 in the RooFit manual
+//the area under the curves in the middle plot seems like it should be equal, but it is not
+//the result of this macro seems to show that the areas should indeed be equal
+
 #include "RooRealVar.h"
 #include "RooGaussian.h"
 #include "RooPolynomial.h"
