@@ -1,3 +1,4 @@
+//this is the original version of the script from Guillelmo
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -7,18 +8,12 @@ using namespace std;
 #include "TF1.h"
 #include "TH1.h"
 #include "TCanvas.h"
-#include <limits>
-
-#ifndef ROOT_Math_DistFuncMathCore
-#include"Math/DistFuncMathCore.h"
-#endif
-
 
 void poisson(int sel = 2, int nevt = 1000000, 
-	     double nexp = 1.0, double nsyst = 0., int nobs = 1.0){
- TH1D *hnevt1	= new TH1D("nevt1","nevt1",150,-0.5,149.5);
- TH1D *hnevt2	= new TH1D("nevt2","nevt2",150,-0.5,149.5);
- TH1D *hnevt3	= new TH1D("nevt3","nevt3",150,-0.5,149.5);
+            double nexp = 1.0, double nsyst = 0.){
+ TH1D *hnevt1	= new TH1D("nevt1","nevt1",100,-0.5,99.5);
+ TH1D *hnevt2	= new TH1D("nevt2","nevt2",100,-0.5,99.5);
+ TH1D *hnevt3	= new TH1D("nevt3","nevt3",100,-0.5,99.5);
  double nevt1,nevt2,nevt3;
  gRandom->SetSeed(666);
  for(int i=0; i<nevt; i++){
@@ -52,24 +47,16 @@ void poisson(int sel = 2, int nevt = 1000000,
  hnevt2->SetLineColor(kBlue);
  hnevt3->SetLineColor(kBlack);
 
- //if     (sel == 0){ // G & P & GP
- //  hnevt1->Draw("");
- //  hnevt2->Draw("same");
- //  hnevt3->Draw("same");
- //}
- //else if(sel == 1){ // P & GP
- //  hnevt2->Draw("");
- //  hnevt3->Draw("same");
- //}
- //else if(sel == 2){ // P
- //  hnevt2->Draw("");
- //}
-
- assert(hnevt2->GetXaxis()->GetBinCenter(nobs+1)==nobs);
-
- double probability = hnevt2->Integral(nobs+1,std::numeric_limits<Int_t>::max());
- std::cout << "probability = " << probability << std::endl;
- double significance = ::ROOT::Math::normal_quantile_c(probability,1);
- std::cout << "significance = " << significance << std::endl;
-
+ if     (sel == 0){ // G & P & GP
+   hnevt1->Draw("");
+   hnevt2->Draw("same");
+   hnevt3->Draw("same");
+ }
+ else if(sel == 1){ // P & GP
+   hnevt2->Draw("");
+   hnevt3->Draw("same");
+ }
+ else if(sel == 2){ // P
+   hnevt2->Draw("");
+ }
 }
