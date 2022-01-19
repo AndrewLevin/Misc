@@ -140,7 +140,7 @@ err, = cuda.cuMemcpyDtoHAsync(
 
 ASSERT_DRV(err)
 
-err, cuda.cuStreamSynchronize(stream)
+err, = cuda.cuStreamSynchronize(stream)
 
 ASSERT_DRV(err)
 
