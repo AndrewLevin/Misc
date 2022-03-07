@@ -42,6 +42,8 @@ elif args.year == '2017':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/ReReco/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON.txt')
 elif args.year == '2018':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PromptReco/Cert_314472-325175_13TeV_PromptReco_Collisions18_JSON.txt')
+else:
+    assert(0)
 
 from coffea.lookup_tools import extractor
 
@@ -4039,27 +4041,9 @@ result = processor.run_uproot_job(
     chunksize=10000000,
 )
 
-print(result['nevents'])
-print(type(result['nevents']))
-
-if 'Signal' in result['nevents']:
-    print('result[\'nevents\'][\'Signal\'] = {}'.format(result['nevents']['Signal']))
-
-if 'TTBarSemi' in result['nevents']:
-    print('result[\'nevents\'][\'TTBarSemi\'] = {}'.format(result['nevents']['TTBarSemi']))
-
-if 'QCDWHJJ' in result['nevents']:
-    print('result[\'nevents\'][\'QCDWHJJ\'] = {}'.format(result['nevents']['QCDWHJJ']))
-
-if 'W' in result['nevents']:
-    print('result[\'nevents\'][\'W\'] = {}'.format(result['nevents']['W']))
-
-if 'WW' in result['nevents']:
-    print('result[\'nevents\'][\'WW\'] = {}'.format(result['nevents']['WW']))
-
-if 'TTBarHad' in result['nevents']:
-    print('result[\'nevents\'][\'TTBarHad\'] = {}'.format(result['nevents']['TTBarHad']))
+for key in result['nevents'].keys():
+    print('result[\'nevents\'][\'{}\'] = {}'.format(key,result['nevents'][key]))
 
 from coffea.util import save
 
-save(result,'outfile')
+save(result,'outfile__{}'.format(args.year))
