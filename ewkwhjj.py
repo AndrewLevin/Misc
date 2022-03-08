@@ -28,6 +28,8 @@ args = parser.parse_args()
 
 assert(args.year == '2016' or args.year == '2017' or args.year == '2018')
 
+year = args.year
+
 bst = xgb.Booster({'nthread': 1})
 
 bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/model.bin')
@@ -36,11 +38,11 @@ bst_merged = xgb.Booster({'nthread': 1})
 
 bst_merged.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/merged.model')
 
-if args.year == '2016':
+if year == '2016':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
-elif args.year == '2017':
+elif year == '2017':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/ReReco/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON.txt')
-elif args.year == '2018':
+elif year == '2018':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PromptReco/Cert_314472-325175_13TeV_PromptReco_Collisions18_JSON.txt')
 else:
     assert(0)
@@ -72,18 +74,45 @@ def select_events_merged (events,dataset,builder,syst='nominal'):
         
         builder.begin_list() 
         
-        if dataset == 'SingleMuon':
-            if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24:
-                builder.end_list()
-                continue
-        elif dataset == 'SingleElectron':
-            if events[i0].HLT.IsoTkMu24 or events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele27_WPTight_Gsf :
-                builder.end_list()
-                continue
+        if dataset == 'singlemuon':
+            if year == "2016":
+                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24:
+                    builder.end_list()
+                    continue
+            elif year == "2017":
+                if not events[i0].HLT.IsoMu27:
+                    builder.end_list()
+                    continue
+            elif year == "2018":
+                if not events[i0].HLT.IsoMu24:
+                    builder.end_list()
+                    continue
+        elif dataset == 'singleelectron':
+            if year == "2016":
+                if events[i0].HLT.IsoTkMu24 or events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele27_WPTight_Gsf :
+                    builder.end_list()
+                    continue
+            elif year == "2017":
+                if events[i0].HLT.IsoMu27 or not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
+                    builder.end_list()
+                    continue
+            elif year == "2018":
+                if events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele32_WPTight_Gsf:
+                    builder.end_list()
+                    continue
         else: #MC
-            if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24 and not events[i0].HLT.Ele27_WPTight_Gsf:
-                builder.end_list()
-                continue
+            if year == "2016":
+                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24 and not events[i0].HLT.Ele27_WPTight_Gsf:
+                    builder.end_list()
+                    continue
+            elif year == "2017":
+                if not events[i0].HLT.IsoMu27 and not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
+                    builder.end_list()
+                    continue
+            elif year == "2018":
+                if not events[i0].HLT.Ele32_WPTight_Gsf and not events[i0].HLT.IsoMu24:
+                    builder.end_list()
+                    continue
         
         if syst == 'nominal':        
             if events[i0].PuppiMET.pt < 30:
@@ -237,19 +266,46 @@ def select_events_resolved (events,dataset,builder,syst='nominal'):
     for i0 in range(len(events)):
         
         builder.begin_list() 
-        
-        if dataset == 'SingleMuon':
-            if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24:
-                builder.end_list()
-                continue
-        elif dataset == 'SingleElectron':
-            if events[i0].HLT.IsoTkMu24 or events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele27_WPTight_Gsf :
-                builder.end_list()
-                continue
+
+        if dataset == 'singlemuon':
+            if year == "2016":
+                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24:
+                    builder.end_list()
+                    continue
+            elif year == "2017":
+                if not events[i0].HLT.IsoMu27:
+                    builder.end_list()
+                    continue
+            elif year == "2018":
+                if not events[i0].HLT.IsoMu24:
+                    builder.end_list()
+                    continue
+        elif dataset == 'singleelectron':
+            if year == "2016":
+                if events[i0].HLT.IsoTkMu24 or events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele27_WPTight_Gsf :
+                    builder.end_list()
+                    continue
+            elif year == "2017":
+                if events[i0].HLT.IsoMu27 or not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
+                    builder.end_list()
+                    continue
+            elif year == "2018":
+                if events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele32_WPTight_Gsf:
+                    builder.end_list()
+                    continue
         else: #MC
-            if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24 and not events[i0].HLT.Ele27_WPTight_Gsf:
-                builder.end_list()
-                continue
+            if year == "2016":
+                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24 and not events[i0].HLT.Ele27_WPTight_Gsf:
+                    builder.end_list()
+                    continue
+            elif year == "2017":
+                if not events[i0].HLT.IsoMu27 and not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
+                    builder.end_list()
+                    continue
+            elif year == "2018":
+                if not events[i0].HLT.Ele32_WPTight_Gsf and not events[i0].HLT.IsoMu24:
+                    builder.end_list()
+                    continue
         
         if syst == 'nominal':        
             if events[i0].PuppiMET.pt < 30:
@@ -819,16 +875,16 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
         dataset = events.metadata['dataset']
 
-        if 'Single' not in dataset:
+        if 'single' not in dataset:
             output['sumw'][dataset] += ak.sum(np.sign(events.Generator.weight))
         output['nevents'][dataset] += len(events)
 
-        if 'Single' in dataset :
+        if 'single' in dataset :
             events = events[lumimask(events.run,events.luminosityBlock)]
    
         particleindices = select_events_resolved(events,dataset,ak.ArrayBuilder()).snapshot()
 
-        if 'Single' not in dataset:
+        if 'single' not in dataset:
             particleindices_JESUp = select_events_resolved(events,dataset,ak.ArrayBuilder(),syst='JESUp').snapshot()
             particleindices_JERUp = select_events_resolved(events,dataset,ak.ArrayBuilder(),syst='JERUp').snapshot()
 
@@ -836,13 +892,13 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         
         basecut = ak.num(particleindices) != 0
 
-        if 'Single' not in dataset:
+        if 'single' not in dataset:
             basecut_JESUp = ak.num(particleindices_JESUp) != 0
             basecut_JERUp = ak.num(particleindices_JERUp) != 0
 
         basecut_merged = ak.num(particleindices_merged) != 0
 
-        if 'Single' in dataset:
+        if 'single' in dataset:
             dataset = 'Data'
 
         if ak.any(basecut_merged):
@@ -1818,16 +1874,27 @@ class EwkwhjjProcessor(processor.ProcessorABC):
     def postprocess(self, accumulator):
         return accumulator
 
-filelists = {
-    'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singlemuon.txt',
-    'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singleelectron.txt',
-    'w' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/w.txt',
-    'ww' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ww.txt',
-    'ewkwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ewkwhjj.txt',
-    'qcdwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/qcdwhjj.txt',
-    'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ttsemi.txt',
-    'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/tthad.txt'
-}
+if year == '2016':
+    filelists = {
+        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singlemuon.txt',
+        'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singleelectron.txt',
+        'w' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/w.txt',
+        'ww' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ww.txt',
+        'ewkwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ewkwhjj.txt',
+        'qcdwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/qcdwhjj.txt',
+        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ttsemi.txt',
+        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/tthad.txt'
+    }
+elif year == '2017':
+    filelists = {
+        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singlemuon.txt'
+    }
+elif year == '2018':
+    filelists = {
+        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt'
+    }
+else:
+    assert(0)
 
 samples = {}
 
@@ -1849,4 +1916,4 @@ for key in result['nevents'].keys():
 
 from coffea.util import save
 
-save(result,'outfile_{}'.format(args.year))
+save(result,'outfile_{}'.format(year))
