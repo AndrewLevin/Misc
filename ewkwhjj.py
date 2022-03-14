@@ -20,12 +20,16 @@ import pandas
 
 import argparse
 
+import pprint
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--year',dest='year',default='2016')
-parser.add_argument('--nprocesses',dest='nprocesses',type=int,default='10')
+parser.add_argument('--nproc',dest='nproc',type=int,default='10')
 
 args = parser.parse_args()
+
+pprint.pprint(vars(args))
 
 assert(args.year == '2016' or args.year == '2017' or args.year == '2018')
 
@@ -61,6 +65,7 @@ ext.add_weight_sets(['electronidsf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwh
 ext.add_weight_sets(['electronidsfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_preVFP_EGM2D.root'])
 ext.add_weight_sets(['pileup ratio_2016 /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'])
 ext.add_weight_sets(['pileup_up ratio_2016_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'])
+ext.add_weight_sets(['pileup_down ratio_2016_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'])
 ext.finalize()
 
 evaluator = ext.make_evaluator()
@@ -454,6 +459,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
+            'sel1_bdtscore_binning1_pileupDown': hist.Hist(
+                'Events',
+                hist.Cat('dataset', 'Dataset'),
+                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+            ),
             'sel1_bdtscore_binning1_prefireUp': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
@@ -544,6 +554,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
+            'sel2_bdtscore_binning1_pileupDown': hist.Hist(
+                'Events',
+                hist.Cat('dataset', 'Dataset'),
+                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+            ),
             'sel2_bdtscore_binning1_prefireUp': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
@@ -615,6 +630,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
             'sel3_bdtscore_binning1_pileupUp': hist.Hist(
+                'Events',
+                hist.Cat('dataset', 'Dataset'),
+                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+            ),
+            'sel3_bdtscore_binning1_pileupDown': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
@@ -878,16 +898,16 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
         dataset = events.metadata['dataset']
 
-        if 'single' not in dataset:
+        if dataset not in ['singleelectron','singlemuon','egamma']:
             output['sumw'][dataset] += ak.sum(np.sign(events.Generator.weight))
         output['nevents'][dataset] += len(events)
 
-        if 'single' in dataset :
+        if dataset in ['singleelectron','singlemuon','egamma']:
             events = events[lumimask(events.run,events.luminosityBlock)]
    
         particleindices = select_events_resolved(events,dataset,ak.ArrayBuilder()).snapshot()
 
-        if 'single' not in dataset:
+        if dataset not in ['singleelectron','singlemuon','egamma']:
             particleindices_JESUp = select_events_resolved(events,dataset,ak.ArrayBuilder(),syst='JESUp').snapshot()
             particleindices_JERUp = select_events_resolved(events,dataset,ak.ArrayBuilder(),syst='JERUp').snapshot()
 
@@ -895,13 +915,13 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         
         basecut = ak.num(particleindices) != 0
 
-        if 'single' not in dataset:
+        if dataset not in ['singleelectron','singlemuon','egamma']:
             basecut_JESUp = ak.num(particleindices_JESUp) != 0
             basecut_JERUp = ak.num(particleindices_JERUp) != 0
 
         basecut_merged = ak.num(particleindices_merged) != 0
 
-        if 'single' in dataset:
+        if dataset in ['singleelectron','singlemuon','egamma']:
             dataset = 'Data'
 
         if ak.any(basecut_merged):
@@ -952,10 +972,6 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel7_muons = sel7_events.Muon[sel7_particleindices['3']]
 
-            sel7_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt))
-            sel7_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel7_muons.eta), sel7_muons.pt))
-            sel7_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel7_muons.eta), sel7_muons.pt))
-
             sel7_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(ak.firsts(sel7_fatjets).pt).data,
                 ak.to_numpy(ak.firsts(sel7_fatjets).eta).data,
@@ -993,6 +1009,9 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             if dataset == 'Data':
                 sel7_weight = np.ones(len(sel7_events))
             else:    
+                sel7_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt))
+                sel7_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel7_muons.eta), sel7_muons.pt))
+                sel7_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel7_muons.eta), sel7_muons.pt))
                 sel7_weight = np.sign(sel7_events.Generator.weight)*sel7_events.L1PreFiringWeight.Nom*sel7_muonidsf*sel7_muonisosf*sel7_muonhltsf
 
             output['sel7_higgsjetmass_binning1'].fill(
@@ -1067,8 +1086,6 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel8_electrons = sel8_events.Electron[sel8_particleindices['4']]
 
-            sel8_electronidsf = ak.firsts(evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt))
-
             sel8_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(ak.firsts(sel8_fatjets).pt).data,
                 ak.to_numpy(ak.firsts(sel8_fatjets).eta).data,
@@ -1105,6 +1122,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             if dataset == 'Data':
                 sel8_weight = np.ones(len(sel8_events))
             else:    
+                sel8_electronidsf = ak.firsts(evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt))
                 sel8_weight = np.sign(sel8_events.Generator.weight)*sel8_events.L1PreFiringWeight.Nom*sel8_electronidsf
 
             output['sel8_higgsjetmass_binning1'].fill(
@@ -1258,6 +1276,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             else:
                 sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
                 sel1_puUp_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
+                sel1_puDown_weight = evaluator['pileup_down'](sel1_events.Pileup.nTrueInt)
                 sel1_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt))
                 sel1_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt))
                 sel1_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt))
@@ -1267,6 +1286,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
                 sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
                 sel1_weight_pileupUp = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
+                sel1_weight_pileupDown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
                 sel1_weight_prefireUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
                 sel1_weight_muonidsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf
                 sel1_weight_muonisosfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf
@@ -1284,6 +1304,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
                     weight=sel1_weight_pileupUp
+                )
+
+                output['sel1_bdtscore_binning1_pileupDown'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight_pileupDown
                 )
 
                 output['sel1_bdtscore_binning1_prefireUp'].fill(
@@ -1376,6 +1402,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
                     weight=sel1_weight_pileupUp
+                )
+
+                output['sel3_bdtscore_binning1_pileupDown'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight_pileupDown
                 )
 
                 output['sel3_bdtscore_binning1_prefireUp'].fill(
@@ -1548,11 +1580,13 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             else:
                 sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
                 sel2_puUp_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
+                sel2_puDown_weight = evaluator['pileup_down'](sel2_events.Pileup.nTrueInt)
                 sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
                 sel2_electronidsfUp = ak.firsts(evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronidsf
 
                 sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf
                 sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf
+                sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf
                 sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf
                 sel2_weight_electronidsfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp
 
@@ -1568,6 +1602,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
                     weight=sel2_weight_pileupUp
+                )
+
+                output['sel2_bdtscore_binning1_pileupDown'].fill(
+                    dataset=dataset,
+                    bdtscore = sel2_bdtscore,
+                    weight=sel2_weight_pileupDown
                 )
 
                 output['sel2_bdtscore_binning1_prefireUp'].fill(
@@ -1648,6 +1688,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
                     weight=sel2_weight_pileupUp
+                )
+
+                output['sel3_bdtscore_binning1_pileupDown'].fill(
+                    dataset=dataset,
+                    bdtscore = sel2_bdtscore,
+                    weight=sel2_weight_pileupDown
                 )
 
                 output['sel3_bdtscore_binning1_prefireUp'].fill(
@@ -1924,11 +1970,13 @@ if year == '2016':
     }
 elif year == '2017':
     filelists = {
-        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singlemuon.txt'
+        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singlemuon.txt',
+        'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singleelectron.txt'
     }
 elif year == '2018':
     filelists = {
-        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt'
+        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
+        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt'
     }
 else:
     assert(0)
@@ -1944,7 +1992,7 @@ result = processor.run_uproot_job(
     'Events',
     EwkwhjjProcessor(),
     processor.futures_executor,
-    {'schema': NanoAODSchema, 'workers': args.nprocesses},
+    {'schema': NanoAODSchema, 'workers': args.nproc},
     chunksize=10000000,
 )
 
