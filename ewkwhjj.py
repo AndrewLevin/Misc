@@ -55,17 +55,47 @@ else:
 from coffea.lookup_tools import extractor
 
 ext = extractor()
-ext.add_weight_sets(['muonidsf NUM_TightID_DEN_TrackerMuons_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ID.root'])
-ext.add_weight_sets(['muonidsfunc NUM_TightID_DEN_TrackerMuons_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ID.root'])
-ext.add_weight_sets(['muonisosf NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ISO.root'])
-ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ISO.root'])
-ext.add_weight_sets(['muonhltsf NUM_IsoMu24_or_IsoTkMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_SingleMuonTriggers.root'])
-ext.add_weight_sets(['muonhltsfunc NUM_IsoMu24_or_IsoTkMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_SingleMuonTriggers.root'])
-ext.add_weight_sets(['electronidsf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_preVFP_EGM2D.root'])
-ext.add_weight_sets(['electronidsfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_preVFP_EGM2D.root'])
-ext.add_weight_sets(['pileup ratio_2016 /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'])
-ext.add_weight_sets(['pileup_up ratio_2016_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'])
-ext.add_weight_sets(['pileup_down ratio_2016_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'])
+if year == '2016':
+    ext.add_weight_sets(['electronrecosf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2016preVFP.root'])
+    ext.add_weight_sets(['electronrecosfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2016preVFP.root'])
+    ext.add_weight_sets(['electronidsf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_preVFP_EGM2D.root'])
+    ext.add_weight_sets(['electronidsfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_preVFP_EGM2D.root'])
+    ext.add_weight_sets(['muonidsf NUM_TightID_DEN_TrackerMuons_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ID.root'])
+    ext.add_weight_sets(['muonidsfunc NUM_TightID_DEN_TrackerMuons_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ID.root'])
+    ext.add_weight_sets(['muonisosf NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ISO.root'])
+    ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ISO.root'])
+    ext.add_weight_sets(['muonhltsf NUM_IsoMu24_or_IsoTkMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_SingleMuonTriggers.root'])
+    ext.add_weight_sets(['muonhltsfunc NUM_IsoMu24_or_IsoTkMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_SingleMuonTriggers.root'])
+elif year == '2017':
+    ext.add_weight_sets(['electronrecosf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2017.root'])
+    ext.add_weight_sets(['electronrecosfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2017.root'])
+    ext.add_weight_sets(['electronidsf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_Medium_UL17.root'])
+    ext.add_weight_sets(['electronidsfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_Medium_UL17.root'])
+    ext.add_weight_sets(['muonidsf NUM_TightID_DEN_TrackerMuons_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_ID.root'])
+    ext.add_weight_sets(['muonidsfunc NUM_TightID_DEN_TrackerMuons_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_ID.root'])
+    ext.add_weight_sets(['muonisosf NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_ISO.root'])
+    ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_ISO.root'])
+    ext.add_weight_sets(['muonhltsf NUM_IsoMu27_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_SingleMuonTriggers.root'])
+    ext.add_weight_sets(['muonhltsfunc NUM_IsoMu27_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_SingleMuonTriggers.root'])
+elif year == '2018':
+    ext.add_weight_sets(['electronrecosf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2018.root'])
+    ext.add_weight_sets(['electronrecosfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2018.root'])
+    ext.add_weight_sets(['electronidsf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_EGM2D.root'])
+    ext.add_weight_sets(['electronidsfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Ele_Medium_EGM2D.root'])
+    ext.add_weight_sets(['muonidsf NUM_TightID_DEN_TrackerMuons_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_ID.root'])
+    ext.add_weight_sets(['muonidsfunc NUM_TightID_DEN_TrackerMuons_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_ID.root'])
+    ext.add_weight_sets(['muonisosf NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_ISO.root'])
+    ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_ISO.root'])
+    ext.add_weight_sets(['muonhltsf NUM_IsoMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_SingleMuonTriggers.root'])
+    ext.add_weight_sets(['muonhltsfunc NUM_IsoMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_SingleMuonTriggers.root'])
+
+
+
+
+
+ext.add_weight_sets(['pileup ratio_{} /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'.format(year)])
+ext.add_weight_sets(['pileup_up ratio_{}_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'.format(year)])
+ext.add_weight_sets(['pileup_down ratio_{}_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'.format(year)])
 ext.finalize()
 
 evaluator = ext.make_evaluator()
@@ -474,6 +504,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
+            'sel1_bdtscore_binning1_electronrecosfUp': hist.Hist(
+                'Events',
+                hist.Cat('dataset', 'Dataset'),
+                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+            ),
             'sel1_bdtscore_binning1_muonidsfUp': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
@@ -569,6 +604,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
+            'sel2_bdtscore_binning1_electronrecosfUp': hist.Hist(
+                'Events',
+                hist.Cat('dataset', 'Dataset'),
+                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+            ),
             'sel2_bdtscore_binning1_JESUp': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
@@ -645,6 +685,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
             'sel3_bdtscore_binning1_electronidsfUp': hist.Hist(
+                'Events',
+                hist.Cat('dataset', 'Dataset'),
+                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+            ),
+            'sel3_bdtscore_binning1_electronrecosfUp': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
@@ -1123,7 +1168,8 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel8_weight = np.ones(len(sel8_events))
             else:    
                 sel8_electronidsf = ak.firsts(evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt))
-                sel8_weight = np.sign(sel8_events.Generator.weight)*sel8_events.L1PreFiringWeight.Nom*sel8_electronidsf
+                sel8_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel8_electrons.eta, sel8_electrons.pt))
+                sel8_weight = np.sign(sel8_events.Generator.weight)*sel8_events.L1PreFiringWeight.Nom*sel8_electronidsf*sel8_electronrecosf
 
             output['sel8_higgsjetmass_binning1'].fill(
                 dataset=dataset,
@@ -1273,6 +1319,24 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             if dataset == 'Data':
                 sel1_weight = np.ones(len(sel1_events))
+            elif dataset == 'ewkwhjj_reweighted':
+                sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
+                sel1_puUp_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
+                sel1_puDown_weight = evaluator['pileup_down'](sel1_events.Pileup.nTrueInt)
+                sel1_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt))
+                sel1_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt))
+                sel1_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt))
+                sel1_muonidsfUp = ak.firsts(evaluator['muonidsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonidsf
+                sel1_muonisosfUp = ak.firsts(evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonisosf
+                sel1_muonhltsfUp = ak.firsts(evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonhltsf
+
+                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_pileupUp = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_pileupDown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_prefireUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_muonidsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_muonisosfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_muonhltsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp*sel1_events.LHEReweightingWeight[:,9]
             else:
                 sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
                 sel1_puUp_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
@@ -1421,6 +1485,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     bdtscore=sel1_bdtscore,
                     weight=sel1_weight
                 )
+
+                output['sel3_bdtscore_binning1_electronrecosfUp'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight
+                )
                 
                 output['sel3_bdtscore_binning1_muonidsfUp'].fill(
                     dataset=dataset,
@@ -1506,6 +1576,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_JESUp_pu_weight = evaluator['pileup'](sel2_JESUp_events.Pileup.nTrueInt)
             sel2_JESUp_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_JESUp_electrons.eta, sel2_JESUp_electrons.pt))
+            sel2_JESUp_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_JESUp_electrons.eta, sel2_JESUp_electrons.pt))
 
             sel2_JESUp_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel2_JESUp_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel2_JESUp_particleindices['7'])).data,np.zeros(len(sel2_JESUp_events)),np.sign(ak.to_numpy(ak.firsts(sel2_JESUp_electrons).charge).data+1),ak.to_numpy(ak.firsts(sel2_JESUp_electrons).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_electrons).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_electrons).phi).data,ak.to_numpy(sel2_JESUp_events.PuppiMET.ptJESUp),ak.to_numpy(sel2_JESUp_events.PuppiMET.phiJESUp),ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel2_JESUp_jets[0]+sel2_JESUp_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel2_JESUp_jets[2]+sel2_JESUp_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).eta - ak.firsts(sel2_JESUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JESUp_electrons+sel2_JESUp_jets[0]).pt*sel2_JESUp_events.PuppiMET.ptJESUp*(1 - np.cos(sel2_JESUp_events.PuppiMET.phiJESUp - (sel2_JESUp_electrons+sel2_JESUp_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JESUp_electrons+sel2_JESUp_jets[1]).pt*sel2_JESUp_events.PuppiMET.ptJESUp*(1 - np.cos(sel2_JESUp_events.PuppiMET.phiJESUp - (sel2_JESUp_electrons+sel2_JESUp_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
@@ -1513,7 +1584,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_JESUp_bdtscore = bst.predict(sel2_JESUp_d)
 
-            sel2_JESUp_weight = np.sign(sel2_JESUp_events.Generator.weight)*sel2_JESUp_pu_weight*sel2_JESUp_events.L1PreFiringWeight.Nom*sel2_JESUp_electronidsf
+            sel2_JESUp_weight = np.sign(sel2_JESUp_events.Generator.weight)*sel2_JESUp_pu_weight*sel2_JESUp_events.L1PreFiringWeight.Nom*sel2_JESUp_electronidsf*sel2_JESUp_electronrecosf
 
             output['sel2_bdtscore_binning1_JESUp'].fill(
                 dataset=dataset,
@@ -1539,6 +1610,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_JERUp_pu_weight = evaluator['pileup'](sel2_JERUp_events.Pileup.nTrueInt)
             sel2_JERUp_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_JERUp_electrons.eta, sel2_JERUp_electrons.pt))
+            sel2_JERUp_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_JERUp_electrons.eta, sel2_JERUp_electrons.pt))
 
             sel2_JERUp_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel2_JERUp_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel2_JERUp_particleindices['7'])).data,np.zeros(len(sel2_JERUp_events)),np.sign(ak.to_numpy(ak.firsts(sel2_JERUp_electrons).charge).data+1),ak.to_numpy(ak.firsts(sel2_JERUp_electrons).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_electrons).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_electrons).phi).data,ak.to_numpy(sel2_JERUp_events.PuppiMET.ptJERUp),ak.to_numpy(sel2_JERUp_events.PuppiMET.phiJERUp),ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel2_JERUp_jets[0]+sel2_JERUp_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel2_JERUp_jets[2]+sel2_JERUp_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).eta - ak.firsts(sel2_JERUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JERUp_electrons+sel2_JERUp_jets[0]).pt*sel2_JERUp_events.PuppiMET.ptJERUp*(1 - np.cos(sel2_JERUp_events.PuppiMET.phiJERUp - (sel2_JERUp_electrons+sel2_JERUp_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JERUp_electrons+sel2_JERUp_jets[1]).pt*sel2_JERUp_events.PuppiMET.ptJERUp*(1 - np.cos(sel2_JERUp_events.PuppiMET.phiJERUp - (sel2_JERUp_electrons+sel2_JERUp_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
@@ -1546,7 +1618,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_JERUp_bdtscore = bst.predict(sel2_JERUp_d)
 
-            sel2_JERUp_weight = np.sign(sel2_JERUp_events.Generator.weight)*sel2_JERUp_pu_weight*sel2_JERUp_events.L1PreFiringWeight.Nom*sel2_JERUp_electronidsf
+            sel2_JERUp_weight = np.sign(sel2_JERUp_events.Generator.weight)*sel2_JERUp_pu_weight*sel2_JERUp_events.L1PreFiringWeight.Nom*sel2_JERUp_electronidsf*sel2_JERUp_electronrecosf
 
             output['sel2_bdtscore_binning1_JERUp'].fill(
                 dataset=dataset,
@@ -1577,18 +1649,38 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             if dataset == 'Data':
                 sel2_weight = np.ones(len(sel2_events))
+            elif dataset == 'ewkwhjj_reweighted':
+                sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
+                sel2_puUp_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
+                sel2_puDown_weight = evaluator['pileup_down'](sel2_events.Pileup.nTrueInt)
+                sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
+                sel2_electronidsfUp = ak.firsts(evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronidsf
+                sel2_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt))
+                sel2_electronrecosfUp = ak.firsts(evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronrecosf
+
+                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_electronidsfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_electronrecosfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp*sel2_events.LHEReweightingWeight[:,9]
+
+
             else:
                 sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
                 sel2_puUp_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
                 sel2_puDown_weight = evaluator['pileup_down'](sel2_events.Pileup.nTrueInt)
                 sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
                 sel2_electronidsfUp = ak.firsts(evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronidsf
+                sel2_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt))
+                sel2_electronrecosfUp = ak.firsts(evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronrecosf
 
-                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf
-                sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf
-                sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf
-                sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf
-                sel2_weight_electronidsfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp
+                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_electronidsfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf
+                sel2_weight_electronrecosfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp
 
             output['sel2_bdtscore_binning1'].fill(
                 dataset=dataset,
@@ -1620,6 +1712,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
                     weight=sel2_weight_electronidsfUp
+                )
+
+                output['sel2_bdtscore_binning1_electronrecosfUp'].fill(
+                    dataset=dataset,
+                    bdtscore=sel2_bdtscore,
+                    weight=sel2_weight_electronrecosfUp
                 )
 
             output['sel2_bdtscore_binning2'].fill(
@@ -1706,6 +1804,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
                     weight=sel2_weight_electronidsfUp
+                )
+
+                output['sel3_bdtscore_binning1_electronrecosfUp'].fill(
+                    dataset=dataset,
+                    bdtscore=sel2_bdtscore,
+                    weight=sel2_weight_electronrecosfUp
                 )
                 
                 output['sel3_bdtscore_binning1_muonidsfUp'].fill(
@@ -1971,12 +2075,17 @@ if year == '2016':
 elif year == '2017':
     filelists = {
         'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singlemuon.txt',
-        'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singleelectron.txt'
+        'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singleelectron.txt',
+        'ttsemi' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/ttsemi.txt'
     }
 elif year == '2018':
     filelists = {
         'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
-        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt'
+        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
+         'ewkwhjj_reweighted': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
+        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
+        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt'
+
     }
 else:
     assert(0)
