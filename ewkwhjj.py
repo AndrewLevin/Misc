@@ -155,27 +155,13 @@ def deltar(eta1,phi1,eta2,phi2):
     return math.sqrt((eta1 - eta2) ** 2 + dphi ** 2)
 
 @numba.njit
-def select_event_merged(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,met_ptjesup,met_ptjerup,dataset,builder,syst='nominal'):
+def select_event_merged(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,dataset,builder):
 
     builder.begin_list() 
 
-    if syst == 'nominal':        
-        if met_pt < 30:
-            builder.end_list()
-            return
-    elif syst == 'JESUp':
-        if met_ptjesup < 30:
-            builder.end_list()
-            return
-    elif syst == 'JERUp':
-        if met_ptjerup < 30:
-            builder.end_list()
-            return
-    else:
+    if met_pt < 30:
         builder.end_list()
         return
-
-    found = False
 
     tight_muons = []
     loose_not_tight_muons = []
@@ -306,23 +292,11 @@ def select_event_merged(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04al
     builder.end_list()                  
 
 @numba.njit
-def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,met_pt,met_ptjesup,met_ptjerup,dataset,builder,syst='nominal'):
+def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,met_pt,dataset,builder):
 
     builder.begin_list() 
 
-    if syst == 'nominal':        
-        if met_pt < 30:
-            builder.end_list()
-            return
-    elif syst == 'JESUp':
-        if met_ptjesup < 30:
-            builder.end_list()
-            return
-    elif syst == 'JERUp':
-        if met_ptjerup < 30:
-            builder.end_list()
-            return
-    else:
+    if met_pt < 30:
         builder.end_list()
         return
 
@@ -441,7 +415,7 @@ def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04
     builder.end_list()                  
                         
 @numba.njit
-def select_events(hlt_isotkmu24,hlt_isomu24,hlt_ele27wptightgsf,hlt_isomu27,hlt_ele32wptightgsfl1doubleeg,hlt_ele32wptightgsf,muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,jet_pt_jes_up,jet_pt_jer_up,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,met_ptjesup,met_ptjerup,dataset,builder_merged,builder_resolved,builder_resolved_jesup,builder_resolved_jerup,syst='nominal'):
+def select_events(hlt_isotkmu24,hlt_isomu24,hlt_ele27wptightgsf,hlt_isomu27,hlt_ele32wptightgsfl1doubleeg,hlt_ele32wptightgsf,muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,jet_pt_jes_up,jet_pt_jer_up,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,met_ptjesup,met_ptjerup,dataset,builder_merged,builder_resolved,builder_resolved_jesup,builder_resolved_jerup):
 
     for i0 in range(len(muon_pt)):
 
@@ -489,14 +463,14 @@ def select_events(hlt_isotkmu24,hlt_isomu24,hlt_ele27wptightgsf,hlt_isomu27,hlt_
             builder_resolved_jerup.end_list()
             continue
 
-        select_event_merged(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],fatjet_pt[i0],fatjet_eta[i0],fatjet_phi[i0],fatjet_msoftdrop[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_merged,syst='nominal')
+        select_event_merged(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],fatjet_pt[i0],fatjet_eta[i0],fatjet_phi[i0],fatjet_msoftdrop[i0],met_pt[i0],dataset,builder_merged)
 
-        select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_resolved,syst='nominal')
+        select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],dataset,builder_resolved)
 
         if dataset not in ['singleelectron','singlemuon','egamma']:
 
-            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jes_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_resolved_jesup,syst='JESUp')
-            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jer_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_resolved_jerup,syst='JERUp')
+            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jes_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_ptjesup[i0],dataset,builder_resolved_jesup)
+            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jer_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_ptjerup[i0],dataset,builder_resolved_jerup)
         else:
             builder_resolved_jesup.begin_list()
             builder_resolved_jesup.end_list()
@@ -1039,11 +1013,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
             hlt_ele32wptightgsf = events.HLT.Ele32_WPTight_Gsf
 
-        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(ak.without_parameters(ak.Array(hlt_isotkmu24)),ak.without_parameters(ak.Array(hlt_isomu24)),ak.without_parameters(ak.Array(hlt_ele27wptightgsf)),ak.without_parameters(ak.Array(hlt_isomu27)),ak.without_parameters(ak.Array(hlt_ele32wptightgsfl1doubleeg)),ak.without_parameters(ak.Array(hlt_ele32wptightgsf)),ak.without_parameters(ak.Array(events.Muon.pt)),ak.without_parameters(ak.Array(events.Muon.eta)),ak.without_parameters(ak.Array(events.Muon.phi)),ak.without_parameters(ak.Array(events.Muon.tightId)),ak.without_parameters(ak.Array(events.Muon.pfRelIso04_all)),ak.without_parameters(ak.Array(events.Electron.pt)),ak.without_parameters(ak.Array(events.Electron.eta)),ak.without_parameters(ak.Array(events.Electron.phi)),ak.without_parameters(ak.Array(events.Electron.deltaEtaSC)),ak.without_parameters(ak.Array(events.Electron.dxy)),ak.without_parameters(ak.Array(events.Electron.dz)),ak.without_parameters(ak.Array(events.Electron.cutBased)),ak.without_parameters(ak.Array(events.Jet.pt)),ak.without_parameters(ak.Array(events.Jet.eta)),ak.without_parameters(ak.Array(events.Jet.phi)),ak.without_parameters(ak.Array(events.Jet.btagDeepB)),ak.without_parameters(ak.Array(jet_pt_jes_up)),ak.without_parameters(ak.Array(jet_pt_jer_up)),ak.without_parameters(ak.Array(events.FatJet.pt)),ak.without_parameters(ak.Array(events.FatJet.eta)),ak.without_parameters(ak.Array(events.FatJet.phi)),ak.without_parameters(ak.Array(events.FatJet.msoftdrop)),ak.without_parameters(ak.Array(events.PuppiMET.pt)),ak.without_parameters(ak.Array(events.PuppiMET.ptJESUp)),ak.without_parameters(ak.Array(events.PuppiMET.ptJERUp)),dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),syst='nominal')
-
-#        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(events.HLT,ak.Array(events.Muon.pt),ak.Array(events.Muon.eta),ak.Array(events.Muon.phi),ak.Array(events.Muon.tightId),ak.Array(events.Muon.pfRelIso04_all),ak.Array(events.Electron.pt),ak.Array(events.Electron.eta),ak.Array(events.Electron.phi),ak.Array(events.Electron.deltaEtaSC),ak.Array(events.Electron.dxy),ak.Array(events.Electron.dz),ak.Array(events.Electron.dz),ak.Array(events.Jet.pt),ak.Array(events.Jet.pt),ak.Array(events.Jet.phi),ak.Array(events.Jet.btagDeepB),ak.Array(jet_pt_jes_up),ak.Array(jet_pt_jer_up),ak.Array(events.FatJet.pt),ak.Array(events.FatJet.eta),ak.Array(events.FatJet.phi),ak.Array(events.FatJet.msoftdrop),ak.Array(events.PuppiMET.pt),ak.Array(events.PuppiMET.ptJESUp),ak.Array(events.PuppiMET.ptJERUp),dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),syst='nominal')
-
-#        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(events.HLT,events.Muon.pt,events.Muon.eta,events.Muon.phi,events.Muon.tightId,events.Muon.pfRelIso04_all,events.Electron.pt,events.Electron.eta,events.Electron.phi,events.Electron.deltaEtaSC,events.Electron.dxy,events.Electron.dz,events.Electron.dz,events.Jet.pt,events.Jet.pt,events.Jet.phi,events.Jet.btagDeepB,jet_pt_jes_up,jet_pt_jer_up,events.FatJet.pt,events.FatJet.eta,events.FatJet.phi,events.FatJet.msoftdrop,events.PuppiMET.pt,events.PuppiMET.ptJESUp,events.PuppiMET.ptJERUp,dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),syst='nominal')
+        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(ak.without_parameters(ak.Array(hlt_isotkmu24)),ak.without_parameters(ak.Array(hlt_isomu24)),ak.without_parameters(ak.Array(hlt_ele27wptightgsf)),ak.without_parameters(ak.Array(hlt_isomu27)),ak.without_parameters(ak.Array(hlt_ele32wptightgsfl1doubleeg)),ak.without_parameters(ak.Array(hlt_ele32wptightgsf)),ak.without_parameters(ak.Array(events.Muon.pt)),ak.without_parameters(ak.Array(events.Muon.eta)),ak.without_parameters(ak.Array(events.Muon.phi)),ak.without_parameters(ak.Array(events.Muon.tightId)),ak.without_parameters(ak.Array(events.Muon.pfRelIso04_all)),ak.without_parameters(ak.Array(events.Electron.pt)),ak.without_parameters(ak.Array(events.Electron.eta)),ak.without_parameters(ak.Array(events.Electron.phi)),ak.without_parameters(ak.Array(events.Electron.deltaEtaSC)),ak.without_parameters(ak.Array(events.Electron.dxy)),ak.without_parameters(ak.Array(events.Electron.dz)),ak.without_parameters(ak.Array(events.Electron.cutBased)),ak.without_parameters(ak.Array(events.Jet.pt)),ak.without_parameters(ak.Array(events.Jet.eta)),ak.without_parameters(ak.Array(events.Jet.phi)),ak.without_parameters(ak.Array(events.Jet.btagDeepB)),ak.without_parameters(ak.Array(jet_pt_jes_up)),ak.without_parameters(ak.Array(jet_pt_jer_up)),ak.without_parameters(ak.Array(events.FatJet.pt)),ak.without_parameters(ak.Array(events.FatJet.eta)),ak.without_parameters(ak.Array(events.FatJet.phi)),ak.without_parameters(ak.Array(events.FatJet.msoftdrop)),ak.without_parameters(ak.Array(events.PuppiMET.pt)),ak.without_parameters(ak.Array(events.PuppiMET.ptJESUp)),ak.without_parameters(ak.Array(events.PuppiMET.ptJERUp)),dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder())
 
         particleindices = builder_resolved.snapshot()
         particleindices_merged = builder_merged.snapshot()
@@ -2191,15 +2161,15 @@ elif year == '2017':
     }
 elif year == '2018':
     filelists = {
-        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
-        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
+#        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
+#        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
         'ewkwhjj_reweighted': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
-        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
-        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt',
+#        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
+#        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt',
 #        'qcdwphjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwphjj.txt',
 #        'qcdwmhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmhjj.txt',
-        'qcdwph': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt',
-        'qcdwmh': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt',
+#        'qcdwph': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt',
+#        'qcdwmh': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt',
 
     }
 else:
