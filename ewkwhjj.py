@@ -1,3 +1,9 @@
+from coffea.jetmet_tools import FactorizedJetCorrector, JetCorrectionUncertainty
+from coffea.jetmet_tools import JECStack, CorrectedJetsFactory
+
+import awkward as ak
+import numpy as np
+
 import uproot as uproot
 from coffea.nanoevents import NanoEventsFactory, BaseSchema, NanoAODSchema
 
@@ -10,6 +16,7 @@ ak.behavior.update(candidate.behavior)
 from coffea.lumi_tools import LumiMask
 
 import numba
+
 
 import math
 import numpy as np
@@ -55,6 +62,7 @@ else:
 from coffea.lookup_tools import extractor
 
 ext = extractor()
+
 if year == '2016':
     ext.add_weight_sets(['electronrecosf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2016preVFP.root'])
     ext.add_weight_sets(['electronrecosfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2016preVFP.root'])
@@ -66,6 +74,21 @@ if year == '2016':
     ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_ISO.root'])
     ext.add_weight_sets(['muonhltsf NUM_IsoMu24_or_IsoTkMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_SingleMuonTriggers.root'])
     ext.add_weight_sets(['muonhltsfunc NUM_IsoMu24_or_IsoTkMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2016_UL_HIPM_SingleMuonTriggers.root'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer19UL16APV_V7_MC_L1FastJet_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer19UL16APV_V7_MC_L2Relative_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer19UL16APV_V7_MC_L3Absolute_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer19UL16APV_V7_MC_L2L3Residual_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer20UL16APV_JRV3_MC_PtResolution_AK4PFchs.jr.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer19UL16APV_V7_MC_Uncertainty_AK4PFchs.junc.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016pre/Summer20UL16APV_JRV3_MC_SF_AK4PFchs.jersf.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer19UL16_V7_MC_L1FastJet_AK4PFchs.jec.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer19UL16_V7_MC_L2Relative_AK4PFchs.jec.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer19UL16_V7_MC_L3Absolute_AK4PFchs.jec.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer19UL16_V7_MC_L2L3Residual_AK4PFchs.jec.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer20UL16_JRV3_MC_PtResolution_AK4PFchs.jr.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer19UL16_V7_MC_Uncertainty_AK4PFchs.junc.txt'])
+#    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2016post/Summer20UL16_JRV3_MC_SF_AK4PFchs.jersf.txt'])
+
 elif year == '2017':
     ext.add_weight_sets(['electronrecosf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2017.root'])
     ext.add_weight_sets(['electronrecosfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2017.root'])
@@ -77,6 +100,14 @@ elif year == '2017':
     ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_ISO.root'])
     ext.add_weight_sets(['muonhltsf NUM_IsoMu27_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_SingleMuonTriggers.root'])
     ext.add_weight_sets(['muonhltsfunc NUM_IsoMu27_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2017_UL_SingleMuonTriggers.root'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_V5_MC_L1FastJet_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_V5_MC_L2Residual_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_V5_MC_L3Absolute_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_V5_MC_L2L3Residual_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_JRV2_MC_PtResolution_AK4PFchs.jr.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_V5_MC_Uncertainty_AK4PFchs.junc.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2017/Summer19UL17_JRV2_MC_SF_AK4PFchs.jersf.txt'])
+
 elif year == '2018':
     ext.add_weight_sets(['electronrecosf EGamma_SF2D /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2018.root'])
     ext.add_weight_sets(['electronrecosfunc EGamma_SF2D_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/EGM2D_UL2018.root'])
@@ -88,391 +119,391 @@ elif year == '2018':
     ext.add_weight_sets(['muonisosfunc NUM_TightRelIso_DEN_TightIDandIPCut_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_ISO.root'])
     ext.add_weight_sets(['muonhltsf NUM_IsoMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_SingleMuonTriggers.root'])
     ext.add_weight_sets(['muonhltsfunc NUM_IsoMu24_DEN_CutBasedIdTight_and_PFIsoTight_abseta_pt_error /afs/cern.ch/user/a/amlevin/ewkwhjj/data/Efficiencies_muon_generalTracks_Z_Run2018_UL_SingleMuonTriggers.root'])
-
-
-
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_V5_MC_L1FastJet_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_V5_MC_L2Relative_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_V5_MC_L3Absolute_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_V5_MC_L2L3Residual_AK4PFchs.jec.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_JRV2_MC_PtResolution_AK4PFchs.jr.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_V5_MC_Uncertainty_AK4PFchs.junc.txt'])
+    ext.add_weight_sets(['* * /afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/Summer19UL18_JRV2_MC_SF_AK4PFchs.jersf.txt'])
 
 
 ext.add_weight_sets(['pileup ratio_{} /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'.format(year)])
 ext.add_weight_sets(['pileup_up ratio_{}_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'.format(year)])
 ext.add_weight_sets(['pileup_down ratio_{}_up /afs/cern.ch/user/a/amlevin/ewkwhjj/data/pileup.root'.format(year)])
+
 ext.finalize()
 
 evaluator = ext.make_evaluator()
 
-@numba.njit
-def delta_r(a,b):
-    dphi = (a.phi - b.phi + 3.14) % (2 * 3.14) - 3.14
-    return math.sqrt((a.eta - b.eta) ** 2 + dphi ** 2)
+if year == '2016':
+    jec_stack_names = ["Summer19UL16APV_V7_MC_L1FastJet_AK4PFchs","Summer19UL16APV_V7_MC_L2Relative_AK4PFchs","Summer19UL16APV_V7_MC_L3Absolute_AK4PFchs","Summer19UL16APV_V7_MC_L2L3Residual_AK4PFchs","Summer20UL16APV_JRV3_MC_PtResolution_AK4PFchs","Summer19UL16APV_V7_MC_Uncertainty_AK4PFchs","Summer20UL16APV_JRV3_MC_SF_AK4PFchs"]
+#    jec_stack_names = ["Summer19UL16_V7_MC_L1FastJet_AK4PFchs","Summer19UL16_V7_MC_L2Relative_AK4PFchs","Summer19UL16_V7_MC_L3Absolute_AK4PFchs","Summer19UL16_V7_MC_L2L3Residual_AK4PFchs","Summer20UL16_JRV3_MC_PtResolution_AK4PFchs","Summer19UL16_V7_MC_Uncertainty_AK4PFchs","Summer20UL16_JRV3_MC_SF_AK4PFchs"]
+elif year == '2017':
+    jec_stack_names = ["Summer19UL17_V5_MC_L1FastJet_AK4PFchs","Summer19UL17_V5_MC_L2Residual_AK4PFchs","Summer19UL17_V5_MC_L3Absolute_AK4PFchs","Summer19UL17_V5_MC_L2L3Residual_AK4PFchs","Summer19UL17_JRV2_MC_PtResolution_AK4PFchs","Summer19UL17_V5_MC_Uncertainty_AK4PFchs","Summer19UL17_JRV2_MC_SF_AK4PFchs"]
+elif year == '2018':
+    jec_stack_names = ["Summer19UL18_V5_MC_L1FastJet_AK4PFchs","Summer19UL18_V5_MC_L2Relative_AK4PFchs","Summer19UL18_V5_MC_L3Absolute_AK4PFchs","Summer19UL18_V5_MC_L2L3Residual_AK4PFchs","Summer19UL18_JRV2_MC_PtResolution_AK4PFchs","Summer19UL18_V5_MC_Uncertainty_AK4PFchs","Summer19UL18_JRV2_MC_SF_AK4PFchs"]
+
+jec_inputs = {name: evaluator[name] for name in jec_stack_names}
+
+
+jec_stack = JECStack(jec_inputs)
 
 @numba.njit
-def select_events_merged (events,dataset,builder,syst='nominal'):
+def deltar(eta1,phi1,eta2,phi2):
+    dphi = (phi1 - phi2 + 3.14) % (2 * 3.14) - 3.14
+    return math.sqrt((eta1 - eta2) ** 2 + dphi ** 2)
 
-    for i0 in range(len(events)):
-        
-        builder.begin_list() 
-        
-        if dataset == 'singlemuon':
-            if year == "2016":
-                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24:
-                    builder.end_list()
-                    continue
-            elif year == "2017":
-                if not events[i0].HLT.IsoMu27:
-                    builder.end_list()
-                    continue
-            elif year == "2018":
-                if not events[i0].HLT.IsoMu24:
-                    builder.end_list()
-                    continue
-        elif dataset == 'singleelectron':
-            if year == "2016":
-                if events[i0].HLT.IsoTkMu24 or events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele27_WPTight_Gsf :
-                    builder.end_list()
-                    continue
-            elif year == "2017":
-                if events[i0].HLT.IsoMu27 or not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
-                    builder.end_list()
-                    continue
-            elif year == "2018":
-                if events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele32_WPTight_Gsf:
-                    builder.end_list()
-                    continue
-        else: #MC
-            if year == "2016":
-                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24 and not events[i0].HLT.Ele27_WPTight_Gsf:
-                    builder.end_list()
-                    continue
-            elif year == "2017":
-                if not events[i0].HLT.IsoMu27 and not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
-                    builder.end_list()
-                    continue
-            elif year == "2018":
-                if not events[i0].HLT.Ele32_WPTight_Gsf and not events[i0].HLT.IsoMu24:
-                    builder.end_list()
-                    continue
-        
-        if syst == 'nominal':        
-            if events[i0].PuppiMET.pt < 30:
-                builder.end_list()
-                continue
-        elif syst == 'JESUp':
-            if events[i0].PuppiMET.ptJESUp < 30:
-                builder.end_list()
-                continue
-        elif syst == 'JERUp':
-            if events[i0].PuppiMET.ptJERUp < 30:
-                builder.end_list()
-                continue
-        else:
+@numba.njit
+def select_event_merged(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,met_ptjesup,met_ptjerup,dataset,builder,syst='nominal'):
+
+    builder.begin_list() 
+
+    if syst == 'nominal':        
+        if met_pt < 30:
             builder.end_list()
-            continue
+            return
+    elif syst == 'JESUp':
+        if met_ptjesup < 30:
+            builder.end_list()
+            return
+    elif syst == 'JERUp':
+        if met_ptjerup < 30:
+            builder.end_list()
+            return
+    else:
+        builder.end_list()
+        return
 
+    found = False
+
+    tight_muons = []
+    loose_not_tight_muons = []
+            
+    for i1 in range(len(muon_pt)):
+        if muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.15 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:
+            tight_muons.append(i1)
+        elif muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.4 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:   
+            loose_not_tight_muons.append(i1)
+
+
+    tight_electrons = [] 
+            
+    for i1 in range(len(electron_pt)):
+        if electron_pt[i1] > 30 and abs(electron_eta[i1] + electron_deltaetasc[i1]) < 2.5:
+            if (abs(electron_eta[i1] + electron_deltaetasc[i1]) < 1.479 and abs(electron_dz[i1]) < 0.1 and abs(electron_dxy[i1]) < 0.05) or (abs(electron_eta[i1] + electron_deltaetasc[i1]) > 1.479 and abs(electron_dz[i1]) < 0.2 and abs(electron_dxy[i1]) < 0.1):
+                if electron_cutbased[i1] >= 3:
+                    tight_electrons.append(i1)
+
+
+    cleaned_fatjets = []
+
+    for i1 in range(len(fatjet_pt)):
         found = False
 
-        tight_muons = []
-        loose_not_tight_muons = []
-            
-        for i1 in range(len(events[i0].Muon)):
-            if events[i0].Muon[i1].tightId==True and events[i0].Muon[i1].pfRelIso04_all < 0.15 and events[i0].Muon[i1].pt > 26 and abs(events[i0].Muon[i1].eta) < 2.4:
-                tight_muons.append(i1)
-            elif events[i0].Muon[i1].tightId==True and events[i0].Muon[i1].pfRelIso04_all < 0.4 and events[i0].Muon[i1].pt > 26 and abs(events[i0].Muon[i1].eta) < 2.4:   
-                loose_not_tight_muons.append(i1)
-                
-        tight_electrons = [] 
-            
-        for i1 in range(len(events[i0].Electron)):
-            if events[i0].Electron[i1].pt > 30 and abs(events[i0].Electron[i1].eta + events[i0].Electron[i1].deltaEtaSC) < 2.5:
-                if (abs(events[i0].Electron[i1].eta + events[i0].Electron[i1].deltaEtaSC) < 1.479 and abs(events[i0].Electron[i1].dz) < 0.1 and abs(events[i0].Electron[i1].dxy) < 0.05) or (abs(events[i0].Electron[i1].eta + events[i0].Electron[i1].deltaEtaSC) > 1.479 and abs(events[i0].Electron[i1].dz) < 0.2 and abs(events[i0].Electron[i1].dxy) < 0.1):
-                    if events[i0].Electron[i1].cutBased >= 3:
-                        tight_electrons.append(i1)
-
-        cleaned_fatjets = []
-
-        for i1 in range(len(events[i0].FatJet)):
-            found = False
-
-            for i2 in range(len(tight_muons)):
-                if delta_r(events[i0].FatJet[i1],events[i0].Muon[tight_muons[i2]]) < 0.5:
-                    found = True
-                    
-            for i2 in range(len(loose_not_tight_muons)):
-                if delta_r(events[i0].FatJet[i1],events[i0].Muon[loose_not_tight_muons[i2]]) < 0.5:
-                    found = True
-
-            for i2 in range(len(tight_electrons)):
-                if delta_r(events[i0].FatJet[i1],events[i0].Electron[tight_electrons[i2]]) < 0.5:
-                    found = True
-
-            if not found:        
-                cleaned_fatjets.append(i1)
-
-        cleaned_jets = []                  
-
-        for i1 in range(len(events[i0].Jet)):
-            found = False
-
-            for i2 in range(len(tight_muons)):
-                if delta_r(events[i0].Jet[i1],events[i0].Muon[tight_muons[i2]]) < 0.5:
-                    found = True
-                    
-            for i2 in range(len(loose_not_tight_muons)):
-                if delta_r(events[i0].Jet[i1],events[i0].Muon[loose_not_tight_muons[i2]]) < 0.5:
-                    found = True
-
-            for i2 in range(len(tight_electrons)):
-                if delta_r(events[i0].Jet[i1],events[i0].Electron[tight_electrons[i2]]) < 0.5:
-                    found = True
-
-            for i2 in range(len(cleaned_fatjets)):
-                if delta_r(events[i0].Jet[i1],events[i0].FatJet[cleaned_fatjets[i2]]) < 0.5:
-                    found = True
-
-            if not found:        
-                cleaned_jets.append(i1)
-
-#        if len(cleaned_jets) < 4 or len(tight_muons) + len(loose_not_tight_muons) + len(tight_electrons) != 1:
-        if len(cleaned_jets) < 2 or len(cleaned_fatjets) < 1 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
-            builder.end_list()
-            continue
-            
-        found = False   
-
-        for i1 in range(len(events[i0].FatJet)):
-
-            if found:
-                break
-
-            for i2 in range(len(cleaned_jets)):
-
-                if found:
-                    break
-
-                for i3 in range(len(cleaned_jets)):
-
-                    if found:
-                        break
-
-                    if i2 == i3:
-                        continue
-
-                    if events[i0].FatJet[cleaned_fatjets[i1]].pt < 250 or abs(events[i0].FatJet[cleaned_fatjets[i1]].eta) < 2.5 or events[i0].FatJet[cleaned_fatjets[i1]].msoftdrop < 50 or events[i0].FatJet[cleaned_fatjets[i1]].msoftdrop > 150:
-                        continue
-
-                    if events[i0].Jet[cleaned_jets[i2]].btagDeepB > 0.2217 or events[i0].Jet[cleaned_jets[i3]].btagDeepB > 0.2217 or events[i0].Jet[cleaned_jets[i2]].pt < 30 or events[i0].Jet[cleaned_jets[i3]].pt < 30 or abs(events[i0].Jet[cleaned_jets[i2]].eta) > 4.7 or abs(events[i0].Jet[cleaned_jets[i3]].eta) > 4.7:
-                        continue
-
+        for i2 in range(len(tight_muons)):
+            if deltar(fatjet_eta[i1],fatjet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
                 found = True
-                        
-                builder.begin_tuple(7)
-                builder.index(0).integer(cleaned_fatjets[i1])
-                builder.index(1).integer(cleaned_jets[i2])
-                builder.index(2).integer(cleaned_jets[i3])
-
-                if len(tight_muons) > 0:
-                    builder.index(3).integer(tight_muons[0])
-                    builder.index(4).integer(-1)
-                elif len(tight_electrons) > 0:
-                    builder.index(3).integer(-1)
-                    builder.index(4).integer(tight_electrons[0])
-
-                nextrajets=0
-                nextrabjets=0
-                for i4 in range(len(cleaned_jets)):
-                    if i4 == i2 or i4 == i3:
-                        continue
-
-                    if events[i0].Jet[cleaned_jets[i4]].pt < 30 or abs(events[i0].Jet[cleaned_jets[i4]].eta) > 4.7:
-                        continue
-
-                    nextrajets=nextrajets+1
-
-                    if events[i0].Jet[cleaned_jets[i4]].btagDeepB > 0.2217:
-                        nextrabjets += 1
-
-                builder.index(5).integer(nextrajets)
-                builder.index(6).integer(nextrabjets)
-
-                builder.end_tuple()    
-                builder.end_list()                  
-                        
-    return builder
-
-@numba.njit
-def select_events_resolved (events,dataset,builder,syst='nominal'):
-    
-    for i0 in range(len(events)):
-        
-        builder.begin_list() 
-
-        if dataset == 'singlemuon':
-            if year == "2016":
-                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24:
-                    builder.end_list()
-                    continue
-            elif year == "2017":
-                if not events[i0].HLT.IsoMu27:
-                    builder.end_list()
-                    continue
-            elif year == "2018":
-                if not events[i0].HLT.IsoMu24:
-                    builder.end_list()
-                    continue
-        elif dataset == 'singleelectron':
-            if year == "2016":
-                if events[i0].HLT.IsoTkMu24 or events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele27_WPTight_Gsf :
-                    builder.end_list()
-                    continue
-            elif year == "2017":
-                if events[i0].HLT.IsoMu27 or not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
-                    builder.end_list()
-                    continue
-            elif year == "2018":
-                if events[i0].HLT.IsoMu24 or not events[i0].HLT.Ele32_WPTight_Gsf:
-                    builder.end_list()
-                    continue
-        else: #MC
-            if year == "2016":
-                if not events[i0].HLT.IsoTkMu24 and not events[i0].HLT.IsoMu24 and not events[i0].HLT.Ele27_WPTight_Gsf:
-                    builder.end_list()
-                    continue
-            elif year == "2017":
-                if not events[i0].HLT.IsoMu27 and not events[i0].HLT.Ele32_WPTight_Gsf_L1DoubleEG:
-                    builder.end_list()
-                    continue
-            elif year == "2018":
-                if not events[i0].HLT.Ele32_WPTight_Gsf and not events[i0].HLT.IsoMu24:
-                    builder.end_list()
-                    continue
-        
-        if syst == 'nominal':        
-            if events[i0].PuppiMET.pt < 30:
-                builder.end_list()
-                continue
-        elif syst == 'JESUp':
-            if events[i0].PuppiMET.ptJESUp < 30:
-                builder.end_list()
-                continue
-        elif syst == 'JERUp':
-            if events[i0].PuppiMET.ptJERUp < 30:
-                builder.end_list()
-                continue
-        else:
-            builder.end_list()
-            continue
-
-        found = False
-
-        tight_muons = []
-        loose_not_tight_muons = []
-            
-        for i1 in range(len(events[i0].Muon)):
-            if events[i0].Muon[i1].tightId==True and events[i0].Muon[i1].pfRelIso04_all < 0.15 and events[i0].Muon[i1].pt > 26 and abs(events[i0].Muon[i1].eta) < 2.4:
-                tight_muons.append(i1)
-            elif events[i0].Muon[i1].tightId==True and events[i0].Muon[i1].pfRelIso04_all < 0.4 and events[i0].Muon[i1].pt > 26 and abs(events[i0].Muon[i1].eta) < 2.4:   
-                loose_not_tight_muons.append(i1)
-                
-        tight_electrons = [] 
-            
-        for i1 in range(len(events[i0].Electron)):
-            if events[i0].Electron[i1].pt > 30 and abs(events[i0].Electron[i1].eta + events[i0].Electron[i1].deltaEtaSC) < 2.5:
-                if (abs(events[i0].Electron[i1].eta + events[i0].Electron[i1].deltaEtaSC) < 1.479 and abs(events[i0].Electron[i1].dz) < 0.1 and abs(events[i0].Electron[i1].dxy) < 0.05) or (abs(events[i0].Electron[i1].eta + events[i0].Electron[i1].deltaEtaSC) > 1.479 and abs(events[i0].Electron[i1].dz) < 0.2 and abs(events[i0].Electron[i1].dxy) < 0.1):
-                    if events[i0].Electron[i1].cutBased >= 3:
-                        tight_electrons.append(i1)
-                             
-        cleaned_jets = []                  
-
-        for i1 in range(len(events[i0].Jet)):
-            found = False
-
-            for i2 in range(len(tight_muons)):
-                if delta_r(events[i0].Jet[i1],events[i0].Muon[tight_muons[i2]]) < 0.5:
-                    found = True
                     
-            for i2 in range(len(loose_not_tight_muons)):
-                if delta_r(events[i0].Jet[i1],events[i0].Muon[loose_not_tight_muons[i2]]) < 0.5:
-                    found = True
+        for i2 in range(len(loose_not_tight_muons)):
+            if deltar(fatjet_eta[i1],fatjet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
+                found = True
 
-            for i2 in range(len(tight_electrons)):
-                if delta_r(events[i0].Jet[i1],events[i0].Electron[tight_electrons[i2]]) < 0.5:
-                    found = True
+        for i2 in range(len(tight_electrons)):
+            if deltar(fatjet_eta[i1],fatjet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
+                found = True
 
-            if not found:        
-                cleaned_jets.append(i1)
+        if not found:        
+            cleaned_fatjets.append(i1)
 
-#        if len(cleaned_jets) < 4 or len(tight_muons) + len(loose_not_tight_muons) + len(tight_electrons) != 1:
-        if len(cleaned_jets) < 4 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
-            builder.end_list()
-            continue
-            
-        found = False   
-            
-        for i1 in range(len(cleaned_jets)):
+    cleaned_jets = []                  
+
+    for i1 in range(len(jet_pt)):
+        found = False
+        
+        for i2 in range(len(tight_muons)):
+            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
+                found = True
+                    
+        for i2 in range(len(loose_not_tight_muons)):
+            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
+                found = True
+
+        for i2 in range(len(tight_electrons)):
+            if deltar(jet_eta[i1],jet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
+                found = True
+
+        for i2 in range(len(cleaned_fatjets)):
+            if deltar(jet_eta[i1],jet_phi[i1],fatjet_eta[cleaned_fatjets[i2]],fatjet_phi[cleaned_fatjets[i2]]) < 0.5:
+                found = True
+
+        if not found:        
+            cleaned_jets.append(i1)
+
+
+    if len(cleaned_jets) < 2 or len(cleaned_fatjets) < 1 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
+        builder.end_list()
+        return
+
+    found = False   
+
+    for i1 in range(len(fatjet_pt)):
+        
+        if found:
+            break
+
+        for i2 in range(len(cleaned_jets)):
 
             if found:
                 break
 
-            for i2 in range(len(cleaned_jets)):
+            for i3 in range(len(cleaned_jets)):
 
                 if found:
                     break
 
-                for i3 in range(len(cleaned_jets)):
+                if i2 == i3:
+                    continue
 
+                if fatjet_pt[cleaned_fatjets[i1]] < 250 or abs(fatjet_eta[cleaned_fatjets[i1]]) < 2.5 or fatjet_msoftdrop[cleaned_fatjets[i1]] < 50 or fatjet_msoftdrop[cleaned_fatjets[i1]] > 150:
+                    continue
+
+                if jet_btagdeepb[cleaned_jets[i2]] > 0.2217 or jet_btagdeepb[cleaned_jets[i3]] > 0.2217 or jet_pt[cleaned_jets[i2]] < 30 or jet_pt[cleaned_jets[i3]] < 30 or abs(jet_eta[cleaned_jets[i2]]) > 4.7 or abs(jet_eta[cleaned_jets[i3]]) > 4.7:
+                    continue
+
+            found = True
+            
+            builder.begin_tuple(7)
+            builder.index(0).integer(cleaned_fatjets[i1])
+            builder.index(1).integer(cleaned_jets[i2])
+            builder.index(2).integer(cleaned_jets[i3])
+
+            if len(tight_muons) > 0:
+                builder.index(3).integer(tight_muons[0])
+                builder.index(4).integer(-1)
+            elif len(tight_electrons) > 0:
+                builder.index(3).integer(-1)
+                builder.index(4).integer(tight_electrons[0])
+
+            nextrajets=0
+            nextrabjets=0
+            for i4 in range(len(cleaned_jets)):
+                if i4 == i2 or i4 == i3:
+                    continue
+
+                if jet_pt[cleaned_jets[i4]] < 30 or abs(jet_eta[cleaned_jets[i4]]) > 4.7:
+                    continue
+
+                nextrajets=nextrajets+1
+
+                if jet_btagdeepb[cleaned_jets[i4]] > 0.2217:
+                    nextrabjets += 1
+
+            builder.index(5).integer(nextrajets)
+            builder.index(6).integer(nextrabjets)
+
+            builder.end_tuple()    
+    builder.end_list()                  
+
+@numba.njit
+def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,met_pt,met_ptjesup,met_ptjerup,dataset,builder,syst='nominal'):
+
+    builder.begin_list() 
+
+    if syst == 'nominal':        
+        if met_pt < 30:
+            builder.end_list()
+            return
+    elif syst == 'JESUp':
+        if met_ptjesup < 30:
+            builder.end_list()
+            return
+    elif syst == 'JERUp':
+        if met_ptjerup < 30:
+            builder.end_list()
+            return
+    else:
+        builder.end_list()
+        return
+
+    found = False
+
+    tight_muons = []
+    loose_not_tight_muons = []
+            
+    for i1 in range(len(muon_pt)):
+        if muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.15 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:
+            tight_muons.append(i1)
+        elif muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.4 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:   
+            loose_not_tight_muons.append(i1)
+                
+    tight_electrons = [] 
+            
+    for i1 in range(len(electron_pt)):
+        if electron_pt[i1] > 30 and abs(electron_eta[i1] + electron_deltaetasc[i1]) < 2.5:
+            if (abs(electron_eta[i1] + electron_deltaetasc[i1]) < 1.479 and abs(electron_dz[i1]) < 0.1 and abs(electron_dxy[i1]) < 0.05) or (abs(electron_eta[i1] + electron_deltaetasc[i1]) > 1.479 and abs(electron_dz[i1]) < 0.2 and abs(electron_dxy[i1]) < 0.1):
+                if electron_cutbased[i1] >= 3:
+                    tight_electrons.append(i1)
+                             
+    cleaned_jets = []                  
+
+    for i1 in range(len(jet_pt)):
+
+        found = False
+
+        for i2 in range(len(tight_muons)):
+            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
+                found = True
+
+        for i2 in range(len(loose_not_tight_muons)):
+            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
+                found = True
+
+        for i2 in range(len(tight_electrons)):
+            if deltar(jet_eta[i1],jet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
+                found = True
+
+        if not found:        
+            cleaned_jets.append(i1)
+
+
+
+#        if len(cleaned_jets) < 4 or len(tight_muons) + len(loose_not_tight_muons) + len(tight_electrons) != 1:
+    if len(cleaned_jets) < 4 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
+        builder.end_list()
+        return
+
+    found = False   
+            
+    for i1 in range(len(cleaned_jets)):
+
+        if found:
+            break
+                
+        for i2 in range(len(cleaned_jets)):
+
+            if found:
+                break
+
+            for i3 in range(len(cleaned_jets)):
+
+                if found:
+                    break
+
+                for i4 in range(len(cleaned_jets)):
+                        
                     if found:
                         break
 
-                    for i4 in range(len(cleaned_jets)):
+                    if i1 == i2 or i1 == i3 or i1 == i4 or i2 == i3 or i2 == i4 or i3 == i4:
+                        continue
+
+                    if jet_btagdeepb[cleaned_jets[i1]] < 0.8953 or jet_btagdeepb[cleaned_jets[i2]] < 0.8953 or jet_pt[cleaned_jets[i1]] < 30 or jet_pt[cleaned_jets[i2]] < 30 or abs(jet_eta[cleaned_jets[i1]]) > 2.5 or abs(jet_eta[cleaned_jets[i2]]) > 2.5:
+                        continue
+                            
+                    if jet_btagdeepb[cleaned_jets[i3]] > 0.2217 or jet_btagdeepb[cleaned_jets[i4]] > 0.2217 or jet_pt[cleaned_jets[i3]] < 30 or jet_pt[cleaned_jets[i4]] < 30 or abs(jet_eta[cleaned_jets[i3]]) > 4.7 or abs(jet_eta[cleaned_jets[i4]]) > 4.7:
+                        continue
+                                
+                    found = True
                         
-                        if found:
-                            break
+                    builder.begin_tuple(8)
+                    builder.index(0).integer(cleaned_jets[i1])
+                    builder.index(1).integer(cleaned_jets[i2])
+                    builder.index(2).integer(cleaned_jets[i3])
+                    builder.index(3).integer(cleaned_jets[i4])
 
-                        if i1 == i2 or i1 == i3 or i1 == i4 or i2 == i3 or i2 == i4 or i3 == i4:
-                            continue
+                    if len(tight_muons) > 0:
+                        builder.index(4).integer(tight_muons[0])
+                        builder.index(5).integer(-1)
+                    elif len(tight_electrons) > 0:
+                        builder.index(4).integer(-1)
+                        builder.index(5).integer(tight_electrons[0])
 
-                        if events[i0].Jet[cleaned_jets[i1]].btagDeepB < 0.8953 or events[i0].Jet[cleaned_jets[i2]].btagDeepB < 0.8953 or events[i0].Jet[cleaned_jets[i1]].pt < 30 or events[i0].Jet[cleaned_jets[i2]].pt < 30 or abs(events[i0].Jet[cleaned_jets[i1]].eta) > 2.5 or abs(events[i0].Jet[cleaned_jets[i2]].eta) > 2.5:
+                    nextrajets=0
+                    nextrabjets=0
+                    for i5 in range(len(cleaned_jets)):
+                        if i5 == i1 or i5 == i2 or i5 == i3 or i5 == i4:
                             continue
                             
-                        if events[i0].Jet[cleaned_jets[i3]].btagDeepB > 0.2217 or events[i0].Jet[cleaned_jets[i4]].btagDeepB > 0.2217 or events[i0].Jet[cleaned_jets[i3]].pt < 30 or events[i0].Jet[cleaned_jets[i4]].pt < 30 or abs(events[i0].Jet[cleaned_jets[i3]].eta) > 4.7 or abs(events[i0].Jet[cleaned_jets[i4]].eta) > 4.7:
+                        if jet_pt[cleaned_jets[i5]] < 30 or abs(jet_eta[cleaned_jets[i2]]) > 4.7:
                             continue
-                                
-                        found = True
+
+                        nextrajets=nextrajets+1
+
+                        if jet_btagdeepb[cleaned_jets[i5]] > 0.2217:
+                            nextrabjets += 1
+
+                    builder.index(6).integer(nextrajets)
+                    builder.index(7).integer(nextrabjets)
+                    
+                    builder.end_tuple()    
+
+    builder.end_list()                  
                         
-                        builder.begin_tuple(8)
-                        builder.index(0).integer(cleaned_jets[i1])
-                        builder.index(1).integer(cleaned_jets[i2])
-                        builder.index(2).integer(cleaned_jets[i3])
-                        builder.index(3).integer(cleaned_jets[i4])
+@numba.njit
+def select_events(hlt_isotkmu24,hlt_isomu24,hlt_ele27wptightgsf,hlt_isomu27,hlt_ele32wptightgsfl1doubleeg,hlt_ele32wptightgsf,muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,jet_pt_jes_up,jet_pt_jer_up,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,met_ptjesup,met_ptjerup,dataset,builder_merged,builder_resolved,builder_resolved_jesup,builder_resolved_jerup,syst='nominal'):
 
-                        if len(tight_muons) > 0:
-                            builder.index(4).integer(tight_muons[0])
-                            builder.index(5).integer(-1)
-                        elif len(tight_electrons) > 0:
-                            builder.index(4).integer(-1)
-                            builder.index(5).integer(tight_electrons[0])
+    for i0 in range(len(muon_pt)):
 
-                        nextrajets=0
-                        nextrabjets=0
-                        for i5 in range(len(cleaned_jets)):
-                            if i5 == i1 or i5 == i2 or i5 == i3 or i5 == i4:
-                                continue
+        pass_hlt = True
 
-                            if events[i0].Jet[cleaned_jets[i5]].pt < 30 or abs(events[i0].Jet[cleaned_jets[i2]].eta) > 4.7:
-                                continue
+        if dataset == 'singlemuon':
+            if year == "2016":
+                if not hlt_isotkmu24[i0] and not hlt_isomu24[i0]:
+                    pass_hlt = False
+            elif year == "2017":
+                if not hlt_isomu27[i0]:
+                    pass_hlt = False
+            elif year == "2018":
+                if not hlt_isomu24[i0]:
+                    pass_hlt = False
+        elif dataset == 'singleelectron':
+            if year == "2016":
+                if hlt_isotkmu24[i0] or hlt_isomu24[i0] or not hlt_ele27wptightgsf[i0]:
+                    pass_hlt = False
+            elif year == "2017":
+                if hlt_isomu27[i0] or not hlt_ele32wptightgsfl1doubleeg[i0]:
+                    pass_hlt = False
+            elif year == "2018":
+                if hlt_isomu24[i0] or not hlt_ele32wptightgsf[i0]:
+                    pass_hlt = False
+        else: #MC
+            if year == "2016":
+                if not hlt_isotkmu24[i0] and not hlt_isomu24[i0] and not hlt_ele27wptightgsf[i0]:
+                    pass_hlt = False
+            elif year == "2017":
+                if not hlt_isomu27[i0] and not hlt_ele32wptightgsfl1doubleeg[i0]:
+                    pass_hlt = False
+            elif year == "2018":
+                if not hlt_ele32wptightgsf[i0] and not hlt_isomu24[i0]:
+                    pass_hlt = False
 
-                            nextrajets=nextrajets+1
+        if not pass_hlt:
+            builder_merged.begin_list()                     
+            builder_merged.end_list()                     
+            builder_resolved.begin_list()
+            builder_resolved.end_list()
+            builder_resolved_jesup.begin_list()
+            builder_resolved_jesup.end_list()
+            builder_resolved_jerup.begin_list()
+            builder_resolved_jerup.end_list()
+            continue
 
-                            if events[i0].Jet[cleaned_jets[i5]].btagDeepB > 0.2217:
-                                nextrabjets += 1
+        select_event_merged(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],fatjet_pt[i0],fatjet_eta[i0],fatjet_phi[i0],fatjet_msoftdrop[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_merged,syst='nominal')
 
-                        builder.index(6).integer(nextrajets)
-                        builder.index(7).integer(nextrabjets)
+        select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_resolved,syst='nominal')
 
-                        builder.end_tuple()    
+        if dataset not in ['singleelectron','singlemuon','egamma']:
 
-        builder.end_list()                  
-                        
-    return builder                            
+            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jes_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_resolved_jesup,syst='JESUp')
+            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jer_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],met_ptjesup[i0],met_ptjerup[i0],dataset,builder_resolved_jerup,syst='JERUp')
+        else:
+            builder_resolved_jesup.begin_list()
+            builder_resolved_jesup.end_list()
+            builder_resolved_jerup.begin_list()
+            builder_resolved_jerup.end_list()    
+        
+    return [builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged]
                         
 class EwkwhjjProcessor(processor.ProcessorABC):
     def __init__(self):
@@ -949,15 +980,78 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
         if dataset in ['singleelectron','singlemuon','egamma']:
             events = events[lumimask(events.run,events.luminosityBlock)]
-   
-        particleindices = select_events_resolved(events,dataset,ak.ArrayBuilder()).snapshot()
 
         if dataset not in ['singleelectron','singlemuon','egamma']:
-            particleindices_JESUp = select_events_resolved(events,dataset,ak.ArrayBuilder(),syst='JESUp').snapshot()
-            particleindices_JERUp = select_events_resolved(events,dataset,ak.ArrayBuilder(),syst='JERUp').snapshot()
 
-        particleindices_merged = select_events_merged(events,dataset,ak.ArrayBuilder()).snapshot()
+            name_map = jec_stack.blank_name_map
+            name_map['JetPt'] = 'pt'
+            name_map['JetMass'] = 'mass'
+            name_map['JetEta'] = 'eta'
+            name_map['JetA'] = 'area'
+
+            jets = events.Jet
         
+            jets['pt_raw'] = (1 - jets['rawFactor']) * jets['pt']
+            jets['mass_raw'] = (1 - jets['rawFactor']) * jets['mass']
+            jets['pt_gen'] = ak.values_astype(ak.fill_none(jets.matched_gen.pt, 0), np.float32)
+            jets['rho'] = ak.broadcast_arrays(events.fixedGridRhoFastjetAll, jets.pt)[0]
+            name_map['ptGenJet'] = 'pt_gen'
+            name_map['ptRaw'] = 'pt_raw'
+            name_map['massRaw'] = 'mass_raw'
+            name_map['Rho'] = 'rho'
+
+            events_cache = events.caches[0]
+
+            jet_factory = CorrectedJetsFactory(name_map, jec_stack)
+            corrected_jets = jet_factory.build(jets, lazy_cache=events_cache)    
+
+            jet_pt = corrected_jets.pt
+            jet_pt_jes_up = corrected_jets.JES_jes.up.pt
+            jet_pt_jer_up = corrected_jets.JER.up.pt
+
+        else:    
+
+            jet_pt = events.Jet.pt
+            jet_pt_jes_up = events.Jet.pt
+            jet_pt_jer_up = events.Jet.pt
+
+            corrected_jets = events.Jet
+
+        if year == "2016":
+            hlt_isotkmu24 = events.HLT.IsoTkMu24
+            hlt_isomu24 = events.HLT.IsoMu24
+            hlt_ele27wptightgsf = events.HLT.Ele27_WPTight_Gsf
+            hlt_isomu27 = ak.Array(len(events)*[False])
+            hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
+            hlt_ele32wptightgsf = ak.Array(len(events)*[False])
+        elif year == "2017":
+            hlt_isotkmu24 = ak.Array(len(events)*[False])
+            hlt_isomu24 = ak.Array(len(events)*[False])
+            hlt_ele27wptightgsf = ak.Array(len(events)*[False])
+            hlt_isomu27 = events.HLT.IsoMu27
+            hlt_ele32wptightgsfl1doubleeg = events.HLT.Ele32_WPTight_Gsf_L1DoubleEG
+            hlt_ele32wptightgsf = ak.Array(len(events)*[False])
+        elif year == "2018":
+            hlt_isotkmu24 = ak.Array(len(events)*[False])
+            hlt_isomu24 = events.HLT.IsoMu24
+            hlt_ele27wptightgsf = ak.Array(len(events)*[False])
+            hlt_isomu27 = ak.Array(len(events)*[False])
+            hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
+            hlt_ele32wptightgsf = events.HLT.Ele32_WPTight_Gsf
+
+        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(ak.without_parameters(ak.Array(hlt_isotkmu24)),ak.without_parameters(ak.Array(hlt_isomu24)),ak.without_parameters(ak.Array(hlt_ele27wptightgsf)),ak.without_parameters(ak.Array(hlt_isomu27)),ak.without_parameters(ak.Array(hlt_ele32wptightgsfl1doubleeg)),ak.without_parameters(ak.Array(hlt_ele32wptightgsf)),ak.without_parameters(ak.Array(events.Muon.pt)),ak.without_parameters(ak.Array(events.Muon.eta)),ak.without_parameters(ak.Array(events.Muon.phi)),ak.without_parameters(ak.Array(events.Muon.tightId)),ak.without_parameters(ak.Array(events.Muon.pfRelIso04_all)),ak.without_parameters(ak.Array(events.Electron.pt)),ak.without_parameters(ak.Array(events.Electron.eta)),ak.without_parameters(ak.Array(events.Electron.phi)),ak.without_parameters(ak.Array(events.Electron.deltaEtaSC)),ak.without_parameters(ak.Array(events.Electron.dxy)),ak.without_parameters(ak.Array(events.Electron.dz)),ak.without_parameters(ak.Array(events.Electron.cutBased)),ak.without_parameters(ak.Array(events.Jet.pt)),ak.without_parameters(ak.Array(events.Jet.eta)),ak.without_parameters(ak.Array(events.Jet.phi)),ak.without_parameters(ak.Array(events.Jet.btagDeepB)),ak.without_parameters(ak.Array(jet_pt_jes_up)),ak.without_parameters(ak.Array(jet_pt_jer_up)),ak.without_parameters(ak.Array(events.FatJet.pt)),ak.without_parameters(ak.Array(events.FatJet.eta)),ak.without_parameters(ak.Array(events.FatJet.phi)),ak.without_parameters(ak.Array(events.FatJet.msoftdrop)),ak.without_parameters(ak.Array(events.PuppiMET.pt)),ak.without_parameters(ak.Array(events.PuppiMET.ptJESUp)),ak.without_parameters(ak.Array(events.PuppiMET.ptJERUp)),dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),syst='nominal')
+
+#        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(events.HLT,ak.Array(events.Muon.pt),ak.Array(events.Muon.eta),ak.Array(events.Muon.phi),ak.Array(events.Muon.tightId),ak.Array(events.Muon.pfRelIso04_all),ak.Array(events.Electron.pt),ak.Array(events.Electron.eta),ak.Array(events.Electron.phi),ak.Array(events.Electron.deltaEtaSC),ak.Array(events.Electron.dxy),ak.Array(events.Electron.dz),ak.Array(events.Electron.dz),ak.Array(events.Jet.pt),ak.Array(events.Jet.pt),ak.Array(events.Jet.phi),ak.Array(events.Jet.btagDeepB),ak.Array(jet_pt_jes_up),ak.Array(jet_pt_jer_up),ak.Array(events.FatJet.pt),ak.Array(events.FatJet.eta),ak.Array(events.FatJet.phi),ak.Array(events.FatJet.msoftdrop),ak.Array(events.PuppiMET.pt),ak.Array(events.PuppiMET.ptJESUp),ak.Array(events.PuppiMET.ptJERUp),dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),syst='nominal')
+
+#        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(events.HLT,events.Muon.pt,events.Muon.eta,events.Muon.phi,events.Muon.tightId,events.Muon.pfRelIso04_all,events.Electron.pt,events.Electron.eta,events.Electron.phi,events.Electron.deltaEtaSC,events.Electron.dxy,events.Electron.dz,events.Electron.dz,events.Jet.pt,events.Jet.pt,events.Jet.phi,events.Jet.btagDeepB,jet_pt_jes_up,jet_pt_jer_up,events.FatJet.pt,events.FatJet.eta,events.FatJet.phi,events.FatJet.msoftdrop,events.PuppiMET.pt,events.PuppiMET.ptJESUp,events.PuppiMET.ptJERUp,dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),syst='nominal')
+
+        particleindices = builder_resolved.snapshot()
+        particleindices_merged = builder_merged.snapshot()
+
+        if dataset not in ['singleelectron','singlemuon','egamma']:
+            particleindices_JESUp = builder_resolved_jesup.snapshot()
+            particleindices_JERUp = builder_resolved_jerup.snapshot()
+
         basecut = ak.num(particleindices) != 0
 
         if dataset not in ['singleelectron','singlemuon','egamma']:
@@ -981,7 +1075,9 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         if dataset != 'Data' and ak.any(basecut_JESUp):
             particleindices_JESUp = particleindices_JESUp[basecut_JESUp]
             events_JESUp = events[basecut_JESUp]
-            jets_JESUp = [events_JESUp.Jet[particleindices_JESUp[idx]] for idx in '0123']
+            corrected_jets_JESUp = corrected_jets[basecut_JESUp] 
+            jets_JESUp = [corrected_jets_JESUp.JES_jes.up[particleindices_JESUp[idx]] for idx in '0123']
+#            jets_JESUp = [events_JESUp.Jet[particleindices_JESUp[idx]] for idx in '0123']
             cut1_JESUp = ak.firsts(((jets_JESUp[0]+jets_JESUp[1]).mass > 50) & ((jets_JESUp[0]+jets_JESUp[1]).mass < 150) & ((jets_JESUp[2]+jets_JESUp[3]).mass > 500) & (abs(jets_JESUp[2].eta - jets_JESUp[3].eta) > 2.5) & (particleindices_JESUp['4'] != -1))
             cut2_JESUp = ak.firsts(((jets_JESUp[0]+jets_JESUp[1]).mass > 50) & ((jets_JESUp[0]+jets_JESUp[1]).mass < 150) & ((jets_JESUp[2]+jets_JESUp[3]).mass > 500) & (abs(jets_JESUp[2].eta - jets_JESUp[3].eta) > 2.5) & (particleindices_JESUp['5'] != -1))
 #            cut3_JESUp = cut1_JESUp | cut2_JESUp
@@ -989,7 +1085,9 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         if dataset != 'Data' and ak.any(basecut_JERUp):
             particleindices_JERUp = particleindices_JERUp[basecut_JERUp]
             events_JERUp = events[basecut_JERUp]
-            jets_JERUp= [events_JERUp.Jet[particleindices_JERUp[idx]] for idx in '0123']        
+            corrected_jets_JERUp = corrected_jets[basecut_JERUp] 
+            jets_JERUp= [corrected_jets_JERUp.JER.up[particleindices_JERUp[idx]] for idx in '0123']        
+#            jets_JERUp= [events_JERUp.Jet[particleindices_JERUp[idx]] for idx in '0123']        
             cut1_JERUp = ak.firsts(((jets_JERUp[0]+jets_JERUp[1]).mass > 50) & ((jets_JERUp[0]+jets_JERUp[1]).mass < 150) & ((jets_JERUp[2]+jets_JERUp[3]).mass > 500) & (abs(jets_JERUp[2].eta - jets_JERUp[3].eta) > 2.5) & (particleindices_JERUp['4'] != -1))
             cut2_JERUp = ak.firsts(((jets_JERUp[0]+jets_JERUp[1]).mass > 50) & ((jets_JERUp[0]+jets_JERUp[1]).mass < 150) & ((jets_JERUp[2]+jets_JERUp[3]).mass > 500) & (abs(jets_JERUp[2].eta - jets_JERUp[3].eta) > 2.5) & (particleindices_JERUp['5'] != -1))
 #            cut3_JERUp = cut1_JERUp | cut2_JERUp
@@ -1049,7 +1147,6 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel7_d = xgb.DMatrix(sel7_X)
 
             sel7_bdtscore = bst_merged.predict(sel7_d)
-
 
             if dataset == 'Data':
                 sel7_weight = np.ones(len(sel7_events))
@@ -1236,8 +1333,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel1_JESUp_particleindices = particleindices_JESUp[cut1_JESUp]
         
             sel1_JESUp_events = events_JESUp[cut1_JESUp]
+
+            sel1_JESUp_corrected_jets = corrected_jets_JESUp[cut1_JESUp]
             
-            sel1_JESUp_jets = [sel1_JESUp_events.Jet[sel1_JESUp_particleindices[idx]] for idx in '0123']
+            sel1_JESUp_jets = [sel1_JESUp_corrected_jets[sel1_JESUp_particleindices[idx]] for idx in '0123']
+
+#            sel1_JESUp_jets = [sel1_JESUp_events.Jet[sel1_JESUp_particleindices[idx]] for idx in '0123']
 
             sel1_JESUp_muons = sel1_JESUp_events.Muon[sel1_JESUp_particleindices['4']]
 
@@ -1252,7 +1353,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel1_JESUp_bdtscore = bst.predict(sel1_JESUp_d)
 
-            sel1_JESUp_weight = np.sign(sel1_JESUp_events.Generator.weight)*sel1_JESUp_pu_weight*sel1_JESUp_events.L1PreFiringWeight.Nom*sel1_JESUp_muonidsf*sel1_JESUp_muonisosf*sel1_JESUp_muonhltsf
+            if dataset == 'ewkwhjj_reweighted':
+                sel1_JESUp_weight = np.sign(sel1_JESUp_events.Generator.weight)*sel1_JESUp_pu_weight*sel1_JESUp_events.L1PreFiringWeight.Nom*sel1_JESUp_muonidsf*sel1_JESUp_muonisosf*sel1_JESUp_muonhltsf*sel1_JESUp_events.LHEReweightingWeight[:,9]
+            else:    
+                sel1_JESUp_weight = np.sign(sel1_JESUp_events.Generator.weight)*sel1_JESUp_pu_weight*sel1_JESUp_events.L1PreFiringWeight.Nom*sel1_JESUp_muonidsf*sel1_JESUp_muonisosf*sel1_JESUp_muonhltsf
 
             output['sel1_bdtscore_binning1_JESUp'].fill(
                 dataset=dataset,
@@ -1272,7 +1376,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         
             sel1_JERUp_events = events_JERUp[cut1_JERUp]
             
-            sel1_JERUp_jets = [sel1_JERUp_events.Jet[sel1_JERUp_particleindices[idx]] for idx in '0123']
+            sel1_JERUp_corrected_jets = corrected_jets_JERUp[cut1_JERUp]
+
+            sel1_JERUp_jets = [sel1_JERUp_corrected_jets[sel1_JERUp_particleindices[idx]] for idx in '0123']
+
+#            sel1_JERUp_jets = [sel1_JERUp_events.Jet[sel1_JERUp_particleindices[idx]] for idx in '0123']
 
             sel1_JERUp_muons = sel1_JERUp_events.Muon[sel1_JERUp_particleindices['4']]
 
@@ -1287,7 +1395,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel1_JERUp_bdtscore = bst.predict(sel1_JERUp_d)
 
-            sel1_JERUp_weight = np.sign(sel1_JERUp_events.Generator.weight)*sel1_JERUp_pu_weight*sel1_JERUp_events.L1PreFiringWeight.Nom*sel1_JERUp_muonidsf*sel1_JERUp_muonisosf*sel1_JERUp_muonhltsf
+            if dataset == 'ewkwhjj_reweighted':
+                sel1_JERUp_weight = np.sign(sel1_JERUp_events.Generator.weight)*sel1_JERUp_pu_weight*sel1_JERUp_events.L1PreFiringWeight.Nom*sel1_JERUp_muonidsf*sel1_JERUp_muonisosf*sel1_JERUp_muonhltsf*sel1_JERUp_events.LHEReweightingWeight[:,9]
+            else:
+                sel1_JERUp_weight = np.sign(sel1_JERUp_events.Generator.weight)*sel1_JERUp_pu_weight*sel1_JERUp_events.L1PreFiringWeight.Nom*sel1_JERUp_muonidsf*sel1_JERUp_muonisosf*sel1_JERUp_muonhltsf
 
             output['sel1_bdtscore_binning1_JERUp'].fill(
                 dataset=dataset,
@@ -1645,7 +1756,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_d = xgb.DMatrix(sel2_X)
 
-            sel2_bdtscore = bst.predict(sel2_d)    
+            sel2_bdtscore = bst.predict(sel2_d)
 
             if dataset == 'Data':
                 sel2_weight = np.ones(len(sel2_events))
@@ -2082,9 +2193,13 @@ elif year == '2018':
     filelists = {
         'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
         'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
-         'ewkwhjj_reweighted': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
+        'ewkwhjj_reweighted': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
         'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
-        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt'
+        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt',
+#        'qcdwphjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwphjj.txt',
+#        'qcdwmhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmhjj.txt',
+        'qcdwph': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt',
+        'qcdwmh': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt',
 
     }
 else:
@@ -2095,7 +2210,20 @@ samples = {}
 for filelist in filelists:
     f = open(filelists[filelist])
     samples[filelist] = f.read().rstrip('\n').split('\n')
+
+"""
     
+result = processor.run_uproot_job(
+    samples,
+    'Events',
+    EwkwhjjProcessor(),
+    processor.iterative_executor,
+    {'schema': NanoAODSchema},
+    chunksize=10000000,
+)
+
+"""
+
 result = processor.run_uproot_job(
     samples,
     'Events',
