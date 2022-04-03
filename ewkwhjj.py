@@ -33,6 +33,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--year',dest='year',default='2016')
 parser.add_argument('--nproc',dest='nproc',type=int,default='10')
+parser.add_argument('--nreweights',dest='nreweights',type=int,default='10')
 
 args = parser.parse_args()
 
@@ -44,11 +45,11 @@ year = args.year
 
 bst = xgb.Booster({'nthread': 1})
 
-bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/model.bin')
+bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/models/resolved.model')
 
 bst_merged = xgb.Booster({'nthread': 1})
 
-bst_merged.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/merged.model')
+bst_merged.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/models/merged.model')
 
 if year == '2016':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
@@ -354,7 +355,7 @@ def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04
         if found:
             break
                 
-        for i2 in range(len(cleaned_jets)):
+        for i2 in range(i1+1,len(cleaned_jets)):
 
             if found:
                 break
@@ -364,7 +365,7 @@ def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04
                 if found:
                     break
 
-                for i4 in range(len(cleaned_jets)):
+                for i4 in range(i3+1,len(cleaned_jets)):
                         
                     if found:
                         break
@@ -1031,7 +1032,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         basecut_merged = ak.num(particleindices_merged) != 0
 
         if dataset in ['singleelectron','singlemuon','egamma']:
-            dataset = 'Data'
+            dataset = 'data'
 
         if ak.any(basecut_merged):
             particleindices_merged = particleindices_merged[basecut_merged]
@@ -1042,7 +1043,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             cut8 = ak.firsts((events_merged.FatJet[particleindices_merged['0']].mass > 50) & (events_merged.FatJet[particleindices_merged['0']].mass < 150) & ((jets_merged[0]+jets_merged[1]).mass > 500) & (abs(jets_merged[0].eta - jets_merged[1].eta) > 2.5) & (particleindices_merged['4'] != -1))
 #            cut9_merged = cut7_merged | cut8_merged
 
-        if dataset != 'Data' and ak.any(basecut_JESUp):
+        if dataset != 'data' and ak.any(basecut_JESUp):
             particleindices_JESUp = particleindices_JESUp[basecut_JESUp]
             events_JESUp = events[basecut_JESUp]
             corrected_jets_JESUp = corrected_jets[basecut_JESUp] 
@@ -1052,7 +1053,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             cut2_JESUp = ak.firsts(((jets_JESUp[0]+jets_JESUp[1]).mass > 50) & ((jets_JESUp[0]+jets_JESUp[1]).mass < 150) & ((jets_JESUp[2]+jets_JESUp[3]).mass > 500) & (abs(jets_JESUp[2].eta - jets_JESUp[3].eta) > 2.5) & (particleindices_JESUp['5'] != -1))
 #            cut3_JESUp = cut1_JESUp | cut2_JESUp
 
-        if dataset != 'Data' and ak.any(basecut_JERUp):
+        if dataset != 'data' and ak.any(basecut_JERUp):
             particleindices_JERUp = particleindices_JERUp[basecut_JERUp]
             events_JERUp = events[basecut_JERUp]
             corrected_jets_JERUp = corrected_jets[basecut_JERUp] 
@@ -1118,7 +1119,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel7_bdtscore = bst_merged.predict(sel7_d)
 
-            if dataset == 'Data':
+            if dataset == 'data':
                 sel7_weight = np.ones(len(sel7_events))
             else:    
                 sel7_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt))
@@ -1231,7 +1232,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel8_bdtscore = bst_merged.predict(sel8_d)
 
-            if dataset == 'Data':
+            if dataset == 'data':
                 sel8_weight = np.ones(len(sel8_events))
             else:    
                 sel8_electronidsf = ak.firsts(evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt))
@@ -1298,7 +1299,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel8_weight
             )
 
-        if dataset != 'Data' and ak.any(basecut_JESUp) and ak.any(cut1_JESUp):
+        if dataset != 'data' and ak.any(basecut_JESUp) and ak.any(cut1_JESUp):
 
             sel1_JESUp_particleindices = particleindices_JESUp[cut1_JESUp]
         
@@ -1340,7 +1341,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel1_JESUp_weight
             )
 
-        if dataset != 'Data' and ak.any(basecut_JERUp) and ak.any(cut1_JERUp):
+        if dataset != 'data' and ak.any(basecut_JERUp) and ak.any(cut1_JERUp):
 
             sel1_JERUp_particleindices = particleindices_JERUp[cut1_JERUp]
         
@@ -1398,7 +1399,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel1_bdtscore = bst.predict(sel1_d)    
 
-            if dataset == 'Data':
+            if dataset == 'data':
                 sel1_weight = np.ones(len(sel1_events))
             elif dataset == 'ewkwhjj_reweighted':
                 sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
@@ -1412,6 +1413,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel1_muonhltsfUp = ak.firsts(evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonhltsf
 
                 sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_reweighted = []
+                for i in range(args.nreweights):
+                    sel1_weight_reweighted.append(np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,i])
+
                 sel1_weight_pileupUp = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
                 sel1_weight_pileupDown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
                 sel1_weight_prefireUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
@@ -1430,6 +1435,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel1_muonhltsfUp = ak.firsts(evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonhltsf
 
                 sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
+
                 sel1_weight_pileupUp = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
                 sel1_weight_pileupDown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
                 sel1_weight_prefireUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
@@ -1444,7 +1450,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel1_weight
             )
 
-            if dataset != 'Data':
+            if dataset == 'ewkwhjj_reweighted':
+                for i in range(args.nreweights):
+                    output['sel1_bdtscore_binning1'.format(i)].fill(
+                        dataset='{}_reweightingweight{}'.format(dataset,i),
+                        bdtscore = sel1_bdtscore,
+                        weight=sel1_weight_reweighted[i]
+                    )
+
+            if dataset != 'data':
                 output['sel1_bdtscore_binning1_pileupUp'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
@@ -1541,7 +1555,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel1_weight
             )
 
-            if dataset != 'Data':
+            if dataset == "ewkwhjj_reweighted":
+                for i in range(args.nreweights):
+                    output['sel3_bdtscore_binning1'].fill(
+                        dataset='{}_reweightingweight{}'.format(dataset,i),
+                        bdtscore = sel1_bdtscore,
+                        weight=sel1_weight_reweighted[i]
+                    )
+
+            if dataset != 'data':
 
                 output['sel3_bdtscore_binning1_pileupUp'].fill(
                     dataset=dataset,
@@ -1645,7 +1667,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel1_weight
             )
 
-        if dataset != 'Data' and ak.any(basecut_JESUp) and ak.any(cut2_JESUp):
+        if dataset != 'data' and ak.any(basecut_JESUp) and ak.any(cut2_JESUp):
 
             sel2_JESUp_particleindices = particleindices_JESUp[cut2_JESUp]
         
@@ -1679,7 +1701,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel2_JESUp_weight
             )
 
-        if dataset != 'Data' and ak.any(basecut_JERUp) and ak.any(cut2_JERUp):
+        if dataset != 'data' and ak.any(basecut_JERUp) and ak.any(cut2_JERUp):
 
             sel2_JERUp_particleindices = particleindices_JERUp[cut2_JERUp]
         
@@ -1728,7 +1750,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_bdtscore = bst.predict(sel2_d)
 
-            if dataset == 'Data':
+            if dataset == 'data':
                 sel2_weight = np.ones(len(sel2_events))
             elif dataset == 'ewkwhjj_reweighted':
                 sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
@@ -1740,6 +1762,9 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel2_electronrecosfUp = ak.firsts(evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronrecosf
 
                 sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_reweighted = []
+                for i in range(args.nreweights):
+                    sel2_weight_reweighted.append(np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,i])
                 sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
                 sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
                 sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
@@ -1769,7 +1794,16 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel2_weight
             )
 
-            if dataset != 'Data':
+
+            if dataset == "ewkwhjj_reweighted":
+                for i in range(args.nreweights):
+                    output['sel2_bdtscore_binning1'].fill(
+                        dataset='{}_reweightingweight{}'.format(dataset,i),
+                        bdtscore = sel2_bdtscore,
+                        weight=sel2_weight_reweighted[i]
+                    )
+
+            if dataset != 'data':
 
                 output['sel2_bdtscore_binning1_pileupUp'].fill(
                     dataset=dataset,
@@ -1861,7 +1895,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel2_weight
             )
 
-            if dataset != 'Data':
+            if dataset == "ewkwhjj_reweighted":
+                for i in range(args.nreweights):
+                    output['sel3_bdtscore_binning1'].fill(
+                        dataset='{}_reweightingweight{}'.format(dataset,i),
+                        bdtscore = sel2_bdtscore,
+                        weight=sel2_weight_reweighted[i]
+                    )
+
+            if dataset != 'data':
 
                 output['sel3_bdtscore_binning1_pileupUp'].fill(
                     dataset=dataset,
@@ -1974,7 +2016,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel4_jets = [sel4_events.Jet[sel4_particleindices[idx]] for idx in '0123']
             sel4_muons = sel4_events.Muon[sel4_particleindices['4']]
             
-            if dataset == 'Data':
+            if dataset == 'data':
                 sel4_weight = np.ones(len(sel4_events))
             else:
                 sel4_weight = np.sign(sel4_events.Generator.weight)
@@ -2060,7 +2102,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel5_jets = [sel5_events.Jet[sel5_particleindices[idx]] for idx in '0123']
             sel5_electrons = sel5_events.Electron[sel5_particleindices['4']]
             
-            if dataset == 'Data':
+            if dataset == 'data':
                 sel5_weight = np.ones(len(sel5_events))
             else:
                 sel5_weight = np.sign(sel5_events.Generator.weight)
@@ -2161,15 +2203,18 @@ elif year == '2017':
     }
 elif year == '2018':
     filelists = {
-#        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
-#        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
+        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
+        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
         'ewkwhjj_reweighted': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
-#        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
-#        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt',
+        'ewkwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
+        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
+        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt',
 #        'qcdwphjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwphjj.txt',
 #        'qcdwmhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmhjj.txt',
-#        'qcdwph': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt',
-#        'qcdwmh': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt',
+        'qcdwph': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt',
+        'qcdwmh': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt',
+#        'wlep' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wlep.txt',
+        'wlep2j': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wlep2j.txt',
 
     }
 else:
