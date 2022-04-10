@@ -131,322 +131,6 @@ jec_inputs = {name: evaluator[name] for name in jec_stack_names}
 
 jec_stack = JECStack(jec_inputs)
 
-@numba.njit
-def deltar(eta1,phi1,eta2,phi2):
-    dphi = (phi1 - phi2 + 3.14) % (2 * 3.14) - 3.14
-    return math.sqrt((eta1 - eta2) ** 2 + dphi ** 2)
-
-@numba.njit
-def select_event_merged(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,dataset,builder):
-
-    builder.begin_list() 
-
-    if met_pt < 30:
-        builder.end_list()
-        return
-
-    tight_muons = []
-    loose_not_tight_muons = []
-            
-    for i1 in range(len(muon_pt)):
-        if muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.15 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:
-            tight_muons.append(i1)
-        elif muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.4 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:   
-            loose_not_tight_muons.append(i1)
-
-
-    tight_electrons = [] 
-            
-    for i1 in range(len(electron_pt)):
-        if electron_pt[i1] > 30 and abs(electron_eta[i1] + electron_deltaetasc[i1]) < 2.5:
-            if (abs(electron_eta[i1] + electron_deltaetasc[i1]) < 1.479 and abs(electron_dz[i1]) < 0.1 and abs(electron_dxy[i1]) < 0.05) or (abs(electron_eta[i1] + electron_deltaetasc[i1]) > 1.479 and abs(electron_dz[i1]) < 0.2 and abs(electron_dxy[i1]) < 0.1):
-                if electron_cutbased[i1] >= 3:
-                    tight_electrons.append(i1)
-
-
-    cleaned_fatjets = []
-
-    for i1 in range(len(fatjet_pt)):
-        found = False
-
-        for i2 in range(len(tight_muons)):
-            if deltar(fatjet_eta[i1],fatjet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
-                found = True
-                    
-        for i2 in range(len(loose_not_tight_muons)):
-            if deltar(fatjet_eta[i1],fatjet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(tight_electrons)):
-            if deltar(fatjet_eta[i1],fatjet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
-                found = True
-
-        if not found:        
-            cleaned_fatjets.append(i1)
-
-    cleaned_jets = []                  
-
-    for i1 in range(len(jet_pt)):
-        found = False
-        
-        for i2 in range(len(tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
-                found = True
-                    
-        for i2 in range(len(loose_not_tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(tight_electrons)):
-            if deltar(jet_eta[i1],jet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(cleaned_fatjets)):
-            if deltar(jet_eta[i1],jet_phi[i1],fatjet_eta[cleaned_fatjets[i2]],fatjet_phi[cleaned_fatjets[i2]]) < 0.5:
-                found = True
-
-        if not found:        
-            cleaned_jets.append(i1)
-
-
-    if len(cleaned_jets) < 2 or len(cleaned_fatjets) < 1 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
-        builder.end_list()
-        return
-
-    found = False   
-
-    for i1 in range(len(fatjet_pt)):
-        
-        if found:
-            break
-
-        for i2 in range(len(cleaned_jets)):
-
-            if found:
-                break
-
-            for i3 in range(len(cleaned_jets)):
-
-                if found:
-                    break
-
-                if i2 == i3:
-                    continue
-
-                if fatjet_pt[cleaned_fatjets[i1]] < 250 or abs(fatjet_eta[cleaned_fatjets[i1]]) < 2.5 or fatjet_msoftdrop[cleaned_fatjets[i1]] < 50 or fatjet_msoftdrop[cleaned_fatjets[i1]] > 150:
-                    continue
-
-                if jet_btagdeepb[cleaned_jets[i2]] > 0.2217 or jet_btagdeepb[cleaned_jets[i3]] > 0.2217 or jet_pt[cleaned_jets[i2]] < 30 or jet_pt[cleaned_jets[i3]] < 30 or abs(jet_eta[cleaned_jets[i2]]) > 4.7 or abs(jet_eta[cleaned_jets[i3]]) > 4.7:
-                    continue
-
-            found = True
-            
-            builder.begin_tuple(7)
-            builder.index(0).integer(cleaned_fatjets[i1])
-            builder.index(1).integer(cleaned_jets[i2])
-            builder.index(2).integer(cleaned_jets[i3])
-
-            if len(tight_muons) > 0:
-                builder.index(3).integer(tight_muons[0])
-                builder.index(4).integer(-1)
-            elif len(tight_electrons) > 0:
-                builder.index(3).integer(-1)
-                builder.index(4).integer(tight_electrons[0])
-
-            nextrajets=0
-            nextrabjets=0
-            for i4 in range(len(cleaned_jets)):
-                if i4 == i2 or i4 == i3:
-                    continue
-
-                if jet_pt[cleaned_jets[i4]] < 30 or abs(jet_eta[cleaned_jets[i4]]) > 4.7:
-                    continue
-
-                nextrajets=nextrajets+1
-
-                if jet_btagdeepb[cleaned_jets[i4]] > 0.2217:
-                    nextrabjets += 1
-
-            builder.index(5).integer(nextrajets)
-            builder.index(6).integer(nextrabjets)
-
-            builder.end_tuple()    
-    builder.end_list()                  
-
-@numba.njit
-def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,met_pt,dataset,builder):
-
-    builder.begin_list() 
-
-    if met_pt < 30:
-        builder.end_list()
-        return
-
-    found = False
-
-    tight_muons = []
-    loose_not_tight_muons = []
-            
-    for i1 in range(len(muon_pt)):
-        if muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.15 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:
-            tight_muons.append(i1)
-        elif muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.4 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:   
-            loose_not_tight_muons.append(i1)
-                
-    tight_electrons = [] 
-            
-    for i1 in range(len(electron_pt)):
-        if electron_pt[i1] > 30 and abs(electron_eta[i1] + electron_deltaetasc[i1]) < 2.5:
-            if (abs(electron_eta[i1] + electron_deltaetasc[i1]) < 1.479 and abs(electron_dz[i1]) < 0.1 and abs(electron_dxy[i1]) < 0.05) or (abs(electron_eta[i1] + electron_deltaetasc[i1]) > 1.479 and abs(electron_dz[i1]) < 0.2 and abs(electron_dxy[i1]) < 0.1):
-                if electron_cutbased[i1] >= 3:
-                    tight_electrons.append(i1)
-                             
-    cleaned_jets = []                  
-
-    for i1 in range(len(jet_pt)):
-
-        found = False
-
-        for i2 in range(len(tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(loose_not_tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(tight_electrons)):
-            if deltar(jet_eta[i1],jet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
-                found = True
-
-        if not found:        
-            cleaned_jets.append(i1)
-
-
-
-#        if len(cleaned_jets) < 4 or len(tight_muons) + len(loose_not_tight_muons) + len(tight_electrons) != 1:
-    if len(cleaned_jets) < 4 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
-        builder.end_list()
-        return
-
-    found = False   
-            
-    for i1 in range(len(cleaned_jets)):
-
-        if found:
-            break
-                
-        for i2 in range(i1+1,len(cleaned_jets)):
-
-            if found:
-                break
-
-            for i3 in range(len(cleaned_jets)):
-
-                if found:
-                    break
-
-                for i4 in range(i3+1,len(cleaned_jets)):
-                        
-                    if found:
-                        break
-
-                    if i1 == i2 or i1 == i3 or i1 == i4 or i2 == i3 or i2 == i4 or i3 == i4:
-                        continue
-
-                    if jet_btagdeepb[cleaned_jets[i1]] < 0.8953 or jet_btagdeepb[cleaned_jets[i2]] < 0.8953 or jet_pt[cleaned_jets[i1]] < 30 or jet_pt[cleaned_jets[i2]] < 30 or abs(jet_eta[cleaned_jets[i1]]) > 2.5 or abs(jet_eta[cleaned_jets[i2]]) > 2.5:
-                        continue
-                            
-                    if jet_btagdeepb[cleaned_jets[i3]] > 0.2217 or jet_btagdeepb[cleaned_jets[i4]] > 0.2217 or jet_pt[cleaned_jets[i3]] < 30 or jet_pt[cleaned_jets[i4]] < 30 or abs(jet_eta[cleaned_jets[i3]]) > 4.7 or abs(jet_eta[cleaned_jets[i4]]) > 4.7:
-                        continue
-                                
-                    found = True
-                        
-                    builder.begin_tuple(8)
-                    builder.index(0).integer(cleaned_jets[i1])
-                    builder.index(1).integer(cleaned_jets[i2])
-                    builder.index(2).integer(cleaned_jets[i3])
-                    builder.index(3).integer(cleaned_jets[i4])
-
-                    if len(tight_muons) > 0:
-                        builder.index(4).integer(tight_muons[0])
-                        builder.index(5).integer(-1)
-                    elif len(tight_electrons) > 0:
-                        builder.index(4).integer(-1)
-                        builder.index(5).integer(tight_electrons[0])
-
-                    nextrajets=0
-                    nextrabjets=0
-                    for i5 in range(len(cleaned_jets)):
-                        if i5 == i1 or i5 == i2 or i5 == i3 or i5 == i4:
-                            continue
-                            
-                        if jet_pt[cleaned_jets[i5]] < 30 or abs(jet_eta[cleaned_jets[i2]]) > 4.7:
-                            continue
-
-                        nextrajets=nextrajets+1
-
-                        if jet_btagdeepb[cleaned_jets[i5]] > 0.2217:
-                            nextrabjets += 1
-
-                    builder.index(6).integer(nextrajets)
-                    builder.index(7).integer(nextrabjets)
-                    
-                    builder.end_tuple()    
-
-    builder.end_list()                  
-                        
-@numba.njit
-def select_events(hlt_isotkmu24,hlt_isomu24,hlt_ele27wptightgsf,hlt_isomu27,hlt_ele32wptightgsfl1doubleeg,hlt_ele32wptightgsf,muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,dataset,builder_merged,builder_resolved):
-
-    for i0 in range(len(muon_pt)):
-
-        pass_hlt = True
-
-        if dataset == 'singlemuon':
-            if year == "2016":
-                if not hlt_isotkmu24[i0] and not hlt_isomu24[i0]:
-                    pass_hlt = False
-            elif year == "2017":
-                if not hlt_isomu27[i0]:
-                    pass_hlt = False
-            elif year == "2018":
-                if not hlt_isomu24[i0]:
-                    pass_hlt = False
-        elif dataset == 'singleelectron':
-            if year == "2016":
-                if hlt_isotkmu24[i0] or hlt_isomu24[i0] or not hlt_ele27wptightgsf[i0]:
-                    pass_hlt = False
-            elif year == "2017":
-                if hlt_isomu27[i0] or not hlt_ele32wptightgsfl1doubleeg[i0]:
-                    pass_hlt = False
-            elif year == "2018":
-                if hlt_isomu24[i0] or not hlt_ele32wptightgsf[i0]:
-                    pass_hlt = False
-        else: #MC
-            if year == "2016":
-                if not hlt_isotkmu24[i0] and not hlt_isomu24[i0] and not hlt_ele27wptightgsf[i0]:
-                    pass_hlt = False
-            elif year == "2017":
-                if not hlt_isomu27[i0] and not hlt_ele32wptightgsfl1doubleeg[i0]:
-                    pass_hlt = False
-            elif year == "2018":
-                if not hlt_ele32wptightgsf[i0] and not hlt_isomu24[i0]:
-                    pass_hlt = False
-
-        if not pass_hlt:
-            builder_merged.begin_list()                     
-            builder_merged.end_list()                     
-            builder_resolved.begin_list()
-            builder_resolved.end_list()
-            continue
-
-        select_event_merged(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],fatjet_pt[i0],fatjet_eta[i0],fatjet_phi[i0],fatjet_msoftdrop[i0],met_pt[i0],dataset,builder_merged)
-
-        select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],dataset,builder_resolved)
-
-    return [builder_resolved,builder_merged]
-                        
 class EwkwhjjProcessor(processor.ProcessorABC):
     def __init__(self):
         self._accumulator = processor.dict_accumulator({
@@ -472,12 +156,57 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         output['sumw'][dataset] += ak.sum(np.sign(events.Generator.weight))
         output['nevents'][dataset] += len(events)
 
+        output = self.accumulator.identity()
+
+        dataset = events.metadata['dataset']
+
+        if dataset not in ['singleelectron','singlemuon','egamma']:
+            output['sumw'][dataset] += ak.sum(np.sign(events.Generator.weight))
+        output['nevents'][dataset] += len(events)
+
+        if dataset in ['singleelectron','singlemuon','egamma']:
+            events = events[lumimask(events.run,events.luminosityBlock)]
+
+        events = events[(events.PuppiMET.pt > 30) | (events.PuppiMET.ptJERUp > 30) | (events.PuppiMET.ptJESUp > 30)]    
+
+        if year == "2016":
+            if dataset == 'singlemuon':
+                events = events[events.HLT.IsoTkMu24 | events.HLT.IsoMu24]
+            elif dataset == 'singleelectron':
+                events = events[vents.HLT.IsoTkMu24 | events.HLT.IsoMu24 | events.HLT.Ele27_WPTight_Gsf]
+            else:    
+                events = events[events.HLT.IsoTkMu24 | events.HLT.IsoMu24 | events.HLT.Ele27_WPTight_Gsf]
+        elif year == "2017":
+            if dataset == 'singlemuon':
+                events = events[events.HLT.IsoMu27]
+            elif dataset == 'singleelectron':
+                events = events[events.HLT.Ele32_WPTight_Gsf_L1DoubleEG]    
+            else:
+                events = events[events.HLT.IsoMu27 | events.HLT.Ele32_WPTight_Gsf_L1DoubleEG]        
+        elif year == "2018":
+            if dataset == 'singlemuon':
+                events = events[events.HLT.IsoMu24]
+            elif dataset == 'egamma':    
+                events = events[events.HLT.Ele32_WPTight_Gsf]
+            else:
+                events = events[events.HLT.IsoMu24 |events.HLT.Ele32_WPTight_Gsf]
+
+        events = events[(ak.num(events.Jet) > 3) | ((ak.num(events.Jet) > 1) & (ak.num(events.FatJet) > 0))]
+
+        events = events[(ak.num(events.Electron) > 0) | (ak.num(events.Muon) > 0)]
+
+        tight_muons = events.Muon[events.Muon.tightId & (events.Muon.pfRelIso04_all < 0.15) & (events.Muon.pt > 26) & (abs(events.Muon.eta) < 2.4)]
+
+        loose_not_tight_muons = events.Muon[events.Muon.tightId & (events.Muon.pfRelIso04_all < 0.4) & (events.Muon.pfRelIso04_all > 0.15) & (events.Muon.pt > 20) & (abs(events.Muon.eta) < 2.4)]
+
+        tight_electrons = events.Electron[(events.Electron.pt > 30) & (events.Electron.cutBased >= 3) & (events.Electron.eta + events.Electron.deltaEtaSC < 2.5) & ((abs(events.Electron.dz) < 0.1) & (abs(events.Electron.dxy) < 0.05) & (events.Electron.eta + events.Electron.deltaEtaSC < 1.479)) | ((abs(events.Electron.dz) < 0.2) & (abs(events.Electron.dxy) < 0.1) & (events.Electron.eta + events.Electron.deltaEtaSC > 1.479))]
+
         name_map = jec_stack.blank_name_map
         name_map['JetPt'] = 'pt'
         name_map['JetMass'] = 'mass'
         name_map['JetEta'] = 'eta'
         name_map['JetA'] = 'area'
-        
+
         jets = events.Jet
         
         jets['pt_raw'] = (1 - jets['rawFactor']) * jets['pt']
@@ -488,211 +217,251 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         name_map['ptRaw'] = 'pt_raw'
         name_map['massRaw'] = 'mass_raw'
         name_map['Rho'] = 'rho'
-        
+
         events_cache = events.caches[0]
-        
+
         jet_factory = CorrectedJetsFactory(name_map, jec_stack)
         corrected_jets = jet_factory.build(jets, lazy_cache=events_cache)    
 
         jet_pt = corrected_jets.pt
+        jet_pt_jesup = corrected_jets.JES_jes.up.pt
+        jet_pt_jerup = corrected_jets.JER.up.pt
 
-        if year == "2016":
-            hlt_isotkmu24 = events.HLT.IsoTkMu24
-            hlt_isomu24 = events.HLT.IsoMu24
-            hlt_ele27wptightgsf = events.HLT.Ele27_WPTight_Gsf
-            hlt_isomu27 = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsf = ak.Array(len(events)*[False])
-        elif year == "2017":
-            hlt_isotkmu24 = ak.Array(len(events)*[False])
-            hlt_isomu24 = ak.Array(len(events)*[False])
-            hlt_ele27wptightgsf = ak.Array(len(events)*[False])
-            hlt_isomu27 = events.HLT.IsoMu27
-            hlt_ele32wptightgsfl1doubleeg = events.HLT.Ele32_WPTight_Gsf_L1DoubleEG
-            hlt_ele32wptightgsf = ak.Array(len(events)*[False])
-        elif year == "2018":
-            hlt_isotkmu24 = ak.Array(len(events)*[False])
-            hlt_isomu24 = events.HLT.IsoMu24
-            hlt_ele27wptightgsf = ak.Array(len(events)*[False])
-            hlt_isomu27 = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsf = events.HLT.Ele32_WPTight_Gsf
+        corrected_jets = ak.zip({
+            "pt": corrected_jets.pt,
+            "eta": corrected_jets.eta,
+            "phi": corrected_jets.phi,
+            "mass": corrected_jets.mass,
+            "charge": np.ones(len(corrected_jets.pt)),
+            "btagDeepB": corrected_jets.btagDeepB
+        }, with_name="PtEtaPhiMCandidate")    
 
-        builder_resolved,builder_merged = select_events(ak.without_parameters(ak.Array(hlt_isotkmu24)),ak.without_parameters(ak.Array(hlt_isomu24)),ak.without_parameters(ak.Array(hlt_ele27wptightgsf)),ak.without_parameters(ak.Array(hlt_isomu27)),ak.without_parameters(ak.Array(hlt_ele32wptightgsfl1doubleeg)),ak.without_parameters(ak.Array(hlt_ele32wptightgsf)),ak.without_parameters(ak.Array(events.Muon.pt)),ak.without_parameters(ak.Array(events.Muon.eta)),ak.without_parameters(ak.Array(events.Muon.phi)),ak.without_parameters(ak.Array(events.Muon.tightId)),ak.without_parameters(ak.Array(events.Muon.pfRelIso04_all)),ak.without_parameters(ak.Array(events.Electron.pt)),ak.without_parameters(ak.Array(events.Electron.eta)),ak.without_parameters(ak.Array(events.Electron.phi)),ak.without_parameters(ak.Array(events.Electron.deltaEtaSC)),ak.without_parameters(ak.Array(events.Electron.dxy)),ak.without_parameters(ak.Array(events.Electron.dz)),ak.without_parameters(ak.Array(events.Electron.cutBased)),ak.without_parameters(ak.Array(events.Jet.pt)),ak.without_parameters(ak.Array(events.Jet.eta)),ak.without_parameters(ak.Array(events.Jet.phi)),ak.without_parameters(ak.Array(events.Jet.btagDeepB)),ak.without_parameters(ak.Array(events.FatJet.pt)),ak.without_parameters(ak.Array(events.FatJet.eta)),ak.without_parameters(ak.Array(events.FatJet.phi)),ak.without_parameters(ak.Array(events.FatJet.msoftdrop)),ak.without_parameters(ak.Array(events.PuppiMET.pt)),dataset,ak.ArrayBuilder(),ak.ArrayBuilder())
+        fatjets = events.FatJet[(events.FatJet.pt > 250) & (abs(events.FatJet.eta) < 2.5) & (events.FatJet.msoftdrop > 50) & (events.FatJet.msoftdrop < 150)]    
+        b_jets = corrected_jets[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 2.5) & (events.Jet.btagDeepB > 0.8953)]
+        vbf_jets = corrected_jets[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB < 0.2217)]
+        nextrajets = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 4.7)]) - 4
+        nextrabjets = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB > 0.2217)]) - 2
 
-        particleindices = builder_resolved.snapshot()
-        particleindices_merged = builder_merged.snapshot()
+        basecut_merged = (ak.num(fatjets) > 0) & (ak.num(vbf_jets) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.pt > 30)
+        events_merged = events[basecut_merged]
+        fatjets_merged = fatjets[basecut_merged]
+        vbf_jets_merged = vbf_jets[basecut_merged]
+        tight_muons_merged = tight_muons[basecut_merged]
+        tight_electrons_merged = tight_electrons[basecut_merged]
+        nextrajets_merged = nextrajets[basecut_merged]
+        nextrabjets_merged = nextrabjets[basecut_merged]
 
-        basecut = ak.num(particleindices) != 0
+        basecut = (ak.num(b_jets) > 1) & (ak.num(vbf_jets) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.pt > 30)
+        events = events[basecut]
+        b_jets = b_jets[basecut]
+        vbf_jets = vbf_jets[basecut]
+        tight_muons = tight_muons[basecut]
+        tight_electrons = tight_electrons[basecut]
+        nextrajets = nextrajets[basecut]
+        nextrabjets = nextrabjets[basecut]
 
-        basecut_merged = ak.num(particleindices_merged) != 0
+        if dataset in ['singleelectron','singlemuon','egamma']:
+            dataset = 'data'
 
         if ak.any(basecut_merged):
-            particleindices_merged = particleindices_merged[basecut_merged]
-            events_merged = events[basecut_merged]
-            events_merged.FatJet[particleindices_merged['0']]
-            jets_merged = [events_merged.Jet[particleindices_merged[idx]] for idx in '12']
-            cut7 = ak.firsts((events_merged.FatJet[particleindices_merged['0']].mass > 50) & (events_merged.FatJet[particleindices_merged['0']].mass < 150) & ((jets_merged[0]+jets_merged[1]).mass > 500) & (abs(jets_merged[0].eta - jets_merged[1].eta) > 2.5) & (particleindices_merged['3'] != -1))
-            cut8 = ak.firsts((events_merged.FatJet[particleindices_merged['0']].mass > 50) & (events_merged.FatJet[particleindices_merged['0']].mass < 150) & ((jets_merged[0]+jets_merged[1]).mass > 500) & (abs(jets_merged[0].eta - jets_merged[1].eta) > 2.5) & (particleindices_merged['4'] != -1))
-#            cut9_merged = cut7_merged | cut8_merged
+            cut7 = (fatjets_merged[:,0].mass > 50) & (fatjets_merged[:,0].mass < 150) & ((vbf_jets_merged[:,0]+vbf_jets_merged[:,1]).mass > 500) & (abs(vbf_jets_merged[:,0].eta - vbf_jets_merged[:,1].eta) > 2.5) & (ak.num(tight_muons_merged) > 0)
+            cut8 = (fatjets_merged[:,0].mass > 50) & (fatjets_merged[:,0].mass < 150) & ((vbf_jets_merged[:,0]+vbf_jets_merged[:,1]).mass > 500) & (abs(vbf_jets_merged[:,0].eta - vbf_jets_merged[:,1].eta) > 2.5) & (ak.num(tight_electrons_merged) > 0)
+#            cut9 = cut7 | cut8
 
-        if ak.any(basecut):
-            particleindices = particleindices[basecut]
-            events = events[basecut]
-            jets = [events.Jet[particleindices[idx]] for idx in '0123']
-            cut1 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 500) & (abs(jets[2].eta - jets[3].eta) > 2.5) & (particleindices['4'] != -1))
-            cut2 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 500) & (abs(jets[2].eta - jets[3].eta) > 2.5) & (particleindices['5'] != -1))
+        cut1 = ((b_jets[:,0] + b_jets[:,1]).mass > 50) & ((b_jets[:,0] + b_jets[:,1]).mass < 150) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass > 500) & (abs(vbf_jets[:,0].eta - vbf_jets[:,1].eta) > 2.5) & (ak.num(tight_muons) > 0)
+        cut2 = ((b_jets[:,0] + b_jets[:,1]).mass > 50) & ((b_jets[:,0] + b_jets[:,1]).mass < 150) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass > 500) & (abs(vbf_jets[:,0].eta - vbf_jets[:,1].eta) > 2.5) & (ak.num(tight_electrons) > 0)
 #            cut3 = cut1 | cut2
-            cut4 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 100) & ((jets[2]+jets[3]).mass < 500) & (particleindices['4'] != -1))
-            cut5 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 100) & ((jets[2]+jets[3]).mass < 500) & (particleindices['5'] != -1))
-#            cut6 = cut4 | cut5
 
         if ak.any(basecut_merged) and ak.any(cut7):
 
-            sel7_particleindices = particleindices_merged[cut7]
-        
             sel7_events = events_merged[cut7]
-            
-            sel7_fatjets = sel7_events.FatJet[sel7_particleindices['0']]
-
-            sel7_jets = [sel7_events.Jet[sel7_particleindices[idx]] for idx in '12']
-
-            sel7_muons = sel7_events.Muon[sel7_particleindices['3']]
+            sel7_fatjets = fatjets_merged[cut7]
+            sel7_vbf_jets = vbf_jets_merged[cut7]
+            sel7_muons = tight_muons_merged[cut7][:,0]
+            sel7_nextrajets = nextrajets_merged[cut7]
+            sel7_nextrabjets = nextrabjets_merged[cut7]
 
             output["weights_merged"][dataset] += processor.column_accumulator(np.sign(ak.to_numpy(sel7_events.Generator.weight).data))
 
             output['variables_merged'][dataset] += processor.column_accumulator(np.transpose(np.vstack((
-                ak.to_numpy(ak.firsts(sel7_fatjets).pt).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).eta).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).phi).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).btagHbb).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).msoftdrop).data,
-                ak.to_numpy(ak.firsts(sel7_particleindices['5'])).data,
-                ak.to_numpy(ak.firsts(sel7_particleindices['6'])).data,
+                ak.to_numpy(sel7_fatjets[:,0].pt),
+                ak.to_numpy(sel7_fatjets[:,0].eta),
+                ak.to_numpy(sel7_fatjets[:,0].phi),
+                ak.to_numpy(sel7_fatjets[:,0].btagDeepB),
+                ak.to_numpy(sel7_fatjets[:,0].btagHbb),
+                ak.to_numpy(sel7_fatjets[:,0].msoftdrop),
+                ak.to_numpy(sel7_nextrajets),
+                ak.to_numpy(sel7_nextrabjets),
                 np.zeros(len(sel7_events)),
-                np.sign(ak.to_numpy(ak.firsts(sel7_muons).charge).data+1),
-                ak.to_numpy(ak.firsts(sel7_muons).pt).data,
-                ak.to_numpy(ak.firsts(sel7_muons).eta).data,
-                ak.to_numpy(ak.firsts(sel7_muons).phi).data,
+                np.sign(ak.to_numpy(sel7_muons.charge)+1),
+                ak.to_numpy(sel7_muons.pt),
+                ak.to_numpy(sel7_muons.eta),
+                ak.to_numpy(sel7_muons.phi),
                 ak.to_numpy(sel7_events.PuppiMET.pt),
                 ak.to_numpy(sel7_events.PuppiMET.phi),
-                ak.to_numpy(ak.firsts(sel7_jets[0]).pt).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).pt).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).eta).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).phi).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).phi).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).btagDeepB).data,
-                ak.to_numpy(ak.firsts((sel7_jets[0]+sel7_jets[1]).mass)).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).eta - ak.firsts(sel7_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel7_muons+sel7_jets[0]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_jets[0]).phi))))).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel7_muons+sel7_jets[1]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_jets[1]).phi))))).data))))
+                ak.to_numpy(sel7_vbf_jets[:,0].pt),
+                ak.to_numpy(sel7_vbf_jets[:,1].pt),
+                ak.to_numpy(sel7_vbf_jets[:,0].eta),
+                ak.to_numpy(sel7_vbf_jets[:,1].eta),
+                ak.to_numpy(sel7_vbf_jets[:,0].phi),
+                ak.to_numpy(sel7_vbf_jets[:,1].phi),
+                ak.to_numpy(sel7_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel7_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel7_vbf_jets[:,0]+sel7_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel7_vbf_jets[:,0].eta - sel7_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel7_muons+sel7_vbf_jets[:,0]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_vbf_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel7_muons+sel7_vbf_jets[:,1]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_vbf_jets[:,1]).phi))))))))
 
-            sel7_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt))
-            sel7_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel7_muons.eta), sel7_muons.pt))
-            sel7_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel7_muons.eta), sel7_muons.pt))
+            sel7_muonidsf = evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt)
+            sel7_muonisosf = evaluator['muonisosf'](abs(sel7_muons.eta), sel7_muons.pt)
+            sel7_muonhltsf = evaluator['muonhltsf'](abs(sel7_muons.eta), sel7_muons.pt)
             sel7_weight = np.sign(sel7_events.Generator.weight)*sel7_events.L1PreFiringWeight.Nom*sel7_muonidsf*sel7_muonisosf*sel7_muonhltsf
 
         if ak.any(basecut_merged) and ak.any(cut8):
 
-            sel8_particleindices = particleindices_merged[cut8]
-        
             sel8_events = events_merged[cut8]
-            
-            sel8_fatjets = sel8_events.FatJet[sel8_particleindices['0']]
-
-            sel8_jets = [sel8_events.Jet[sel8_particleindices[idx]] for idx in '12']
-
-            sel8_electrons = sel8_events.Electron[sel8_particleindices['4']]
+            sel8_fatjets = fatjets_merged[cut8]
+            sel8_vbf_jets = vbf_jets_merged[cut8]
+            sel8_electrons = tight_electrons_merged[cut8][:,0]
+            sel8_nextrajets = nextrajets_merged[cut8]
+            sel8_nextrabjets = nextrabjets_merged[cut8]
 
             output["weights_merged"][dataset] += processor.column_accumulator(np.sign(ak.to_numpy(sel8_events.Generator.weight).data))
 
             output['variables_merged'][dataset] += processor.column_accumulator(np.transpose(np.vstack((
-                ak.to_numpy(ak.firsts(sel8_fatjets).pt).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).eta).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).phi).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).btagHbb).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).msoftdrop).data,
-                ak.to_numpy(ak.firsts(sel8_particleindices['5'])).data,
-                ak.to_numpy(ak.firsts(sel8_particleindices['6'])).data,
+                ak.to_numpy(sel8_fatjets[:,0].pt),
+                ak.to_numpy(sel8_fatjets[:,0].eta),
+                ak.to_numpy(sel8_fatjets[:,0].phi),
+                ak.to_numpy(sel8_fatjets[:,0].btagDeepB),
+                ak.to_numpy(sel8_fatjets[:,0].btagHbb),
+                ak.to_numpy(sel8_fatjets[:,0].msoftdrop),
+                ak.to_numpy(sel8_nextrajets),
+                ak.to_numpy(sel8_nextrabjets),
                 np.ones(len(sel8_events)),
-                np.sign(ak.to_numpy(ak.firsts(sel8_electrons).charge).data+1),
-                ak.to_numpy(ak.firsts(sel8_electrons).pt).data,
-                ak.to_numpy(ak.firsts(sel8_electrons).eta).data,
-                ak.to_numpy(ak.firsts(sel8_electrons).phi).data,
+                np.sign(ak.to_numpy(sel8_electrons.charge)+1),
+                ak.to_numpy(sel8_electrons.pt),
+                ak.to_numpy(sel8_electrons.eta),
+                ak.to_numpy(sel8_electrons.phi),
                 ak.to_numpy(sel8_events.PuppiMET.pt),
                 ak.to_numpy(sel8_events.PuppiMET.phi),
-                ak.to_numpy(ak.firsts(sel8_jets[0]).pt).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).pt).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).eta).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).phi).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).phi).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).btagDeepB).data,
-                ak.to_numpy(ak.firsts((sel8_jets[0]+sel8_jets[1]).mass)).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).eta - ak.firsts(sel8_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel8_electrons+sel8_jets[0]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_jets[0]).phi))))).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel8_electrons+sel8_jets[1]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_jets[1]).phi))))).data))))
+                ak.to_numpy(sel8_vbf_jets[:,0].pt),
+                ak.to_numpy(sel8_vbf_jets[:,1].pt),
+                ak.to_numpy(sel8_vbf_jets[:,0].eta),
+                ak.to_numpy(sel8_vbf_jets[:,1].eta),
+                ak.to_numpy(sel8_vbf_jets[:,0].phi),
+                ak.to_numpy(sel8_vbf_jets[:,1].phi),
+                ak.to_numpy(sel8_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel8_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel8_vbf_jets[:,0]+sel8_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel8_vbf_jets[:,0].eta - sel8_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel8_electrons+sel8_vbf_jets[:,0]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_vbf_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel8_electrons+sel8_vbf_jets[:,1]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_vbf_jets[:,1]).phi))))))))
 
-            sel8_electronidsf = ak.firsts(evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt))
-            sel8_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel8_electrons.eta, sel8_electrons.pt))
-
+            sel8_electronidsf = evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt)
+            sel8_electronrecosf = evaluator['electronrecosf'](sel8_electrons.eta, sel8_electrons.pt)
             sel8_weight = np.sign(sel8_events.Generator.weight)*sel8_events.L1PreFiringWeight.Nom*sel8_electronidsf*sel8_electronrecosf
 
         if ak.any(basecut) and ak.any(cut1):
 
-            sel1_particleindices = particleindices[cut1]
-        
             sel1_events = events[cut1]
             
-            sel1_jets = [sel1_events.Jet[sel1_particleindices[idx]] for idx in '0123']
+            sel1_b_jets = b_jets[cut1]
 
-            sel1_muons = sel1_events.Muon[sel1_particleindices['4']]
+            sel1_vbf_jets = vbf_jets[cut1]
+
+            sel1_muons = tight_muons[cut1][:,0]
+
+            sel1_nextrajets = nextrajets[cut1]
+
+            sel1_nextrabjets = nextrabjets[cut1]
 
             output["weights"][dataset] += processor.column_accumulator(np.sign(ak.to_numpy(sel1_events.Generator.weight).data))
 
-            output['variables'][dataset] += processor.column_accumulator(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel1_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel1_particleindices['7'])).data,np.zeros(len(sel1_events)),np.sign(ak.to_numpy(ak.firsts(sel1_muons).charge).data+1),ak.to_numpy(ak.firsts(sel1_muons).pt).data,ak.to_numpy(ak.firsts(sel1_muons).eta).data,ak.to_numpy(ak.firsts(sel1_muons).phi).data,ak.to_numpy(sel1_events.PuppiMET.pt),ak.to_numpy(sel1_events.PuppiMET.phi),ak.to_numpy(ak.firsts(sel1_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel1_jets[0]+sel1_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel1_jets[2]+sel1_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel1_jets[2]).eta - ak.firsts(sel1_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_muons+sel1_jets[0]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_muons+sel1_jets[1]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_jets[1]).phi))))).data))))
+            output['variables'][dataset] += processor.column_accumulator(np.transpose(np.vstack((
+                ak.to_numpy(sel1_nextrajets),
+                ak.to_numpy(sel1_nextrabjets),
+                np.zeros(len(sel1_events)),
+                np.sign(ak.to_numpy(sel1_muons.charge)+1),
+                ak.to_numpy(sel1_muons.pt),
+                ak.to_numpy(sel1_muons.eta),
+                ak.to_numpy(sel1_muons.phi),
+                ak.to_numpy(sel1_events.PuppiMET.pt),
+                ak.to_numpy(sel1_events.PuppiMET.phi),
+                ak.to_numpy(sel1_b_jets[:,0].pt),
+                ak.to_numpy(sel1_b_jets[:,1].pt),
+                ak.to_numpy(sel1_vbf_jets[:,0].pt),
+                ak.to_numpy(sel1_vbf_jets[:,1].pt),
+                ak.to_numpy(sel1_b_jets[:,0].eta),
+                ak.to_numpy(sel1_b_jets[:,1].eta),
+                ak.to_numpy(sel1_vbf_jets[:,0].eta),
+                ak.to_numpy(sel1_vbf_jets[:,1].eta),
+                ak.to_numpy(sel1_b_jets[:,0].phi),
+                ak.to_numpy(sel1_b_jets[:,1].phi),
+                ak.to_numpy(sel1_vbf_jets[:,0].phi),
+                ak.to_numpy(sel1_vbf_jets[:,1].phi),
+                ak.to_numpy(sel1_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel1_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel1_b_jets[:,0]+sel1_b_jets[:,1]).mass),
+                ak.to_numpy((sel1_vbf_jets[:,0]+sel1_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel1_vbf_jets[:,0].eta - sel1_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel1_muons+sel1_b_jets[:,0]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_b_jets[:,0]).phi)))),ak.to_numpy(np.sqrt(2*(sel1_muons+sel1_b_jets[:,1]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_b_jets[:,1]).phi))))))))
 
-            if dataset == 'ewkwhjj_reweighted':
-                sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
-                sel1_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-            else:
-                sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
-                sel1_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
+            sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
+            sel1_muonidsf = evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt)
+            sel1_muonisosf = evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt)
+            sel1_muonhltsf = evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt)
+            sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
 
         if ak.any(basecut) and ak.any(cut2):
-                
-            sel2_particleindices = particleindices[cut2]
-        
+       
             sel2_events = events[cut2]
-            
-            sel2_jets = [sel2_events.Jet[sel2_particleindices[idx]] for idx in '0123']
-            sel2_electrons = sel2_events.Electron[sel2_particleindices['4']]
-
+            sel2_b_jets = b_jets[cut2]
+            sel2_vbf_jets = vbf_jets[cut2]
+            sel2_electrons = tight_electrons[cut2][:,0]
+            sel2_nextrajets = nextrajets[cut2]
+            sel2_nextrabjets = nextrabjets[cut2]
+         
             output["weights"][dataset] += processor.column_accumulator(np.sign(ak.to_numpy(sel2_events.Generator.weight).data))
 
-            output['variables'][dataset] += processor.column_accumulator(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel2_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel2_particleindices['7'])).data,np.ones(len(sel2_events)),np.sign(ak.to_numpy(ak.firsts(sel2_electrons).charge).data+1),ak.to_numpy(ak.firsts(sel2_electrons).pt).data,ak.to_numpy(ak.firsts(sel2_electrons).eta).data,ak.to_numpy(ak.firsts(sel2_electrons).phi).data,ak.to_numpy(sel2_events.PuppiMET.pt),ak.to_numpy(sel2_events.PuppiMET.phi),ak.to_numpy(ak.firsts(sel2_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel2_jets[0]+sel2_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel2_jets[2]+sel2_jets[3]).mass)).data,ak.to_numpy(ak.firsts(sel2_jets[2]).eta - ak.firsts(sel2_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_electrons+sel2_jets[0]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_electrons+sel2_jets[1]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_jets[1]).phi))))).data))))
+            output['variables'][dataset] += processor.column_accumulator(np.transpose(np.vstack((
+                ak.to_numpy(sel2_nextrajets),
+                ak.to_numpy(sel2_nextrabjets),
+                np.ones(len(sel2_events)),
+                np.sign(ak.to_numpy(sel2_electrons.charge)+1),
+                ak.to_numpy(sel2_electrons.pt),
+                ak.to_numpy(sel2_electrons.eta),
+                ak.to_numpy(sel2_electrons.phi),
+                ak.to_numpy(sel2_events.PuppiMET.pt),
+                ak.to_numpy(sel2_events.PuppiMET.phi),
+                ak.to_numpy(sel2_b_jets[:,0].pt),
+                ak.to_numpy(sel2_b_jets[:,1].pt),
+                ak.to_numpy(sel2_vbf_jets[:,0].pt),
+                ak.to_numpy(sel2_vbf_jets[:,1].pt),
+                ak.to_numpy(sel2_b_jets[:,0].eta),
+                ak.to_numpy(sel2_b_jets[:,1].eta),
+                ak.to_numpy(sel2_vbf_jets[:,0].eta),
+                ak.to_numpy(sel2_vbf_jets[:,1].eta),
+                ak.to_numpy(sel2_b_jets[:,0].phi),
+                ak.to_numpy(sel2_b_jets[:,1].phi),
+                ak.to_numpy(sel2_vbf_jets[:,0].phi),
+                ak.to_numpy(sel2_vbf_jets[:,1].phi),
+                ak.to_numpy(sel2_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel2_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel2_b_jets[:,0]+sel2_b_jets[:,1]).mass),
+                ak.to_numpy((sel2_vbf_jets[:,0]+sel2_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel2_vbf_jets[:,0].eta - sel2_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel2_electrons+sel2_b_jets[:,0]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_b_jets[:,0]).phi)))),ak.to_numpy(np.sqrt(2*(sel2_electrons+sel2_b_jets[:,1]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_b_jets[:,1]).phi))))))))
 
-            if dataset == 'ewkwhjj_reweighted':
-                sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
-                sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-            else:
-                sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
-                sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf
+            sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
+
+            sel2_electronidsf = evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt)
+            sel2_electronrecosf = evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt)
+
+            sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf
 
         return output
         
@@ -709,6 +478,8 @@ if year == '2016':
         'qcdwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/qcdwhjj.txt',
         'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ttsemi.txt',
 #        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/tthad.txt'
+        'stoptchan' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/stoptchan.txt',
+        'santitoptchan' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/santitoptchan.txt',
     }
 elif year == '2017':
     filelists = {
@@ -768,41 +539,32 @@ for key in result['nevents'].keys():
 
 from coffea.util import save
 
-#save(result,'training_data_{}'.format(args.year))
+save(result,"training_data_{}".format(year))
 
-#[result['variables'][key] for key in result['variables'].keys()]
-
-#save(pandas.DataFrame(np.hstack(
-
-#['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt']
-#key="ww"
-
-#pandas.concat([pandas.DataFrame(f["variables"][key].value.data,columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','met','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt']),pandas.DataFrame(f["weights"][key].value,columns=["weight"]),
-
-#pandas.DataFrame(len(f["variables"][key].value.data)*[key],columns=["label"])
-
-#],axis=1)
+"""
 
 save(pandas.concat(
     [
         pandas.concat(
             [
-                pandas.DataFrame(result["variables"][key].value.data,columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','met','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt']),
+                pandas.DataFrame(result["variables"][key].value,columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','met','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt']),
                 pandas.DataFrame(result["weights"][key].value,columns=["weight"]),
-                pandas.DataFrame(len(result["variables"][key].value.data)*[key],columns=["label"])
+                pandas.DataFrame(len(result["variables"][key].value)*[key],columns=["label"])
          ],axis=1)
         for key in result['variables'].keys()
-    ]
-),"ewkwhjj_training_data_{}".format(args.year))
+    ],
+ignore_index=True),"ewkwhjj_training_data_{}".format(args.year))
 
 save(pandas.concat(
     [
         pandas.concat(
             [
-                pandas.DataFrame(result["variables_merged"][key].value.data,columns=['higgsjetpt','higgsjeteta','higgsjetphi','higgsjetbtag1','higgsjetbtag2','higgsjetsoftdropmass','nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','met','metphi','vbsjet1pt','vbsjet2pt','vbsjet1eta','vbsjet2eta','vbsjet1phi','vbsjet2phi','vbsjet1btag','vbsjet2btag','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt']),
+                pandas.DataFrame(result["variables_merged"][key].value,columns=['higgsjetpt','higgsjeteta','higgsjetphi','higgsjetbtag1','higgsjetbtag2','higgsjetsoftdropmass','nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','met','metphi','vbfjet1pt','vbfjet2pt','vbfjet1eta','vbfjet2eta','vbfjet1phi','vbfjet2phi','vbfjet1btag','vbfjet2btag','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt']),
                 pandas.DataFrame(result["weights_merged"][key].value,columns=["weight"]),
-                pandas.DataFrame(len(result["variables_merged"][key].value.data)*[key],columns=["label"])
+                pandas.DataFrame(len(result["variables_merged"][key].value)*[key],columns=["label"])
             ],axis=1)
         for key in result['variables'].keys()
-    ]
-),"ewkwhjj_merged_training_data_{}".format(args.year))
+    ],
+ignore_index=True),"ewkwhjj_merged_training_data_{}".format(args.year))
+
+"""

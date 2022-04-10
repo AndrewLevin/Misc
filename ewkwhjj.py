@@ -45,11 +45,14 @@ year = args.year
 
 bst = xgb.Booster({'nthread': 1})
 
-bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/models/resolved.model')
+#bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/models/resolved.model')
+#bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/resolved.model')
+bst.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/model.bin')
 
 bst_merged = xgb.Booster({'nthread': 1})
 
-bst_merged.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/models/merged.model')
+#bst_merged.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/models/merged.model')
+bst_merged.load_model('/afs/cern.ch/user/a/amlevin/ewkwhjj/merged.model')
 
 if year == '2016':
     lumimask = LumiMask('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt')
@@ -147,339 +150,8 @@ elif year == '2018':
 
 jec_inputs = {name: evaluator[name] for name in jec_stack_names}
 
-
 jec_stack = JECStack(jec_inputs)
 
-@numba.njit
-def deltar(eta1,phi1,eta2,phi2):
-    dphi = (phi1 - phi2 + 3.14) % (2 * 3.14) - 3.14
-    return math.sqrt((eta1 - eta2) ** 2 + dphi ** 2)
-
-@numba.njit
-def select_event_merged(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,dataset,builder):
-
-    builder.begin_list() 
-
-    if met_pt < 30:
-        builder.end_list()
-        return
-
-    tight_muons = []
-    loose_not_tight_muons = []
-            
-    for i1 in range(len(muon_pt)):
-        if muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.15 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:
-            tight_muons.append(i1)
-        elif muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.4 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:   
-            loose_not_tight_muons.append(i1)
-
-
-    tight_electrons = [] 
-            
-    for i1 in range(len(electron_pt)):
-        if electron_pt[i1] > 30 and abs(electron_eta[i1] + electron_deltaetasc[i1]) < 2.5:
-            if (abs(electron_eta[i1] + electron_deltaetasc[i1]) < 1.479 and abs(electron_dz[i1]) < 0.1 and abs(electron_dxy[i1]) < 0.05) or (abs(electron_eta[i1] + electron_deltaetasc[i1]) > 1.479 and abs(electron_dz[i1]) < 0.2 and abs(electron_dxy[i1]) < 0.1):
-                if electron_cutbased[i1] >= 3:
-                    tight_electrons.append(i1)
-
-
-    cleaned_fatjets = []
-
-    for i1 in range(len(fatjet_pt)):
-        found = False
-
-        for i2 in range(len(tight_muons)):
-            if deltar(fatjet_eta[i1],fatjet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
-                found = True
-                    
-        for i2 in range(len(loose_not_tight_muons)):
-            if deltar(fatjet_eta[i1],fatjet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(tight_electrons)):
-            if deltar(fatjet_eta[i1],fatjet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
-                found = True
-
-        if not found:        
-            cleaned_fatjets.append(i1)
-
-    cleaned_jets = []                  
-
-    for i1 in range(len(jet_pt)):
-        found = False
-        
-        for i2 in range(len(tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
-                found = True
-                    
-        for i2 in range(len(loose_not_tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(tight_electrons)):
-            if deltar(jet_eta[i1],jet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(cleaned_fatjets)):
-            if deltar(jet_eta[i1],jet_phi[i1],fatjet_eta[cleaned_fatjets[i2]],fatjet_phi[cleaned_fatjets[i2]]) < 0.5:
-                found = True
-
-        if not found:        
-            cleaned_jets.append(i1)
-
-
-    if len(cleaned_jets) < 2 or len(cleaned_fatjets) < 1 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
-        builder.end_list()
-        return
-
-    found = False   
-
-    for i1 in range(len(fatjet_pt)):
-        
-        if found:
-            break
-
-        for i2 in range(len(cleaned_jets)):
-
-            if found:
-                break
-
-            for i3 in range(len(cleaned_jets)):
-
-                if found:
-                    break
-
-                if i2 == i3:
-                    continue
-
-                if fatjet_pt[cleaned_fatjets[i1]] < 250 or abs(fatjet_eta[cleaned_fatjets[i1]]) < 2.5 or fatjet_msoftdrop[cleaned_fatjets[i1]] < 50 or fatjet_msoftdrop[cleaned_fatjets[i1]] > 150:
-                    continue
-
-                if jet_btagdeepb[cleaned_jets[i2]] > 0.2217 or jet_btagdeepb[cleaned_jets[i3]] > 0.2217 or jet_pt[cleaned_jets[i2]] < 30 or jet_pt[cleaned_jets[i3]] < 30 or abs(jet_eta[cleaned_jets[i2]]) > 4.7 or abs(jet_eta[cleaned_jets[i3]]) > 4.7:
-                    continue
-
-            found = True
-            
-            builder.begin_tuple(7)
-            builder.index(0).integer(cleaned_fatjets[i1])
-            builder.index(1).integer(cleaned_jets[i2])
-            builder.index(2).integer(cleaned_jets[i3])
-
-            if len(tight_muons) > 0:
-                builder.index(3).integer(tight_muons[0])
-                builder.index(4).integer(-1)
-            elif len(tight_electrons) > 0:
-                builder.index(3).integer(-1)
-                builder.index(4).integer(tight_electrons[0])
-
-            nextrajets=0
-            nextrabjets=0
-            for i4 in range(len(cleaned_jets)):
-                if i4 == i2 or i4 == i3:
-                    continue
-
-                if jet_pt[cleaned_jets[i4]] < 30 or abs(jet_eta[cleaned_jets[i4]]) > 4.7:
-                    continue
-
-                nextrajets=nextrajets+1
-
-                if jet_btagdeepb[cleaned_jets[i4]] > 0.2217:
-                    nextrabjets += 1
-
-            builder.index(5).integer(nextrajets)
-            builder.index(6).integer(nextrabjets)
-
-            builder.end_tuple()    
-    builder.end_list()                  
-
-@numba.njit
-def select_event_resolved(muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,met_pt,dataset,builder):
-
-    builder.begin_list() 
-
-    if met_pt < 30:
-        builder.end_list()
-        return
-
-    found = False
-
-    tight_muons = []
-    loose_not_tight_muons = []
-            
-    for i1 in range(len(muon_pt)):
-        if muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.15 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:
-            tight_muons.append(i1)
-        elif muon_tightid[i1]==True and muon_pfreliso04all[i1] < 0.4 and muon_pt[i1] > 26 and abs(muon_eta[i1]) < 2.4:   
-            loose_not_tight_muons.append(i1)
-                
-    tight_electrons = [] 
-            
-    for i1 in range(len(electron_pt)):
-        if electron_pt[i1] > 30 and abs(electron_eta[i1] + electron_deltaetasc[i1]) < 2.5:
-            if (abs(electron_eta[i1] + electron_deltaetasc[i1]) < 1.479 and abs(electron_dz[i1]) < 0.1 and abs(electron_dxy[i1]) < 0.05) or (abs(electron_eta[i1] + electron_deltaetasc[i1]) > 1.479 and abs(electron_dz[i1]) < 0.2 and abs(electron_dxy[i1]) < 0.1):
-                if electron_cutbased[i1] >= 3:
-                    tight_electrons.append(i1)
-                             
-    cleaned_jets = []                  
-
-    for i1 in range(len(jet_pt)):
-
-        found = False
-
-        for i2 in range(len(tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[tight_muons[i2]],muon_phi[tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(loose_not_tight_muons)):
-            if deltar(jet_eta[i1],jet_phi[i1],muon_eta[loose_not_tight_muons[i2]],muon_phi[loose_not_tight_muons[i2]]) < 0.5:
-                found = True
-
-        for i2 in range(len(tight_electrons)):
-            if deltar(jet_eta[i1],jet_phi[i1],electron_eta[tight_electrons[i2]],electron_phi[tight_electrons[i2]]) < 0.5:
-                found = True
-
-        if not found:        
-            cleaned_jets.append(i1)
-
-
-
-#        if len(cleaned_jets) < 4 or len(tight_muons) + len(loose_not_tight_muons) + len(tight_electrons) != 1:
-    if len(cleaned_jets) < 4 or len(tight_muons) + len(tight_electrons) != 1 or len(loose_not_tight_muons) != 0:
-        builder.end_list()
-        return
-
-    found = False   
-            
-    for i1 in range(len(cleaned_jets)):
-
-        if found:
-            break
-                
-        for i2 in range(i1+1,len(cleaned_jets)):
-
-            if found:
-                break
-
-            for i3 in range(len(cleaned_jets)):
-
-                if found:
-                    break
-
-                for i4 in range(i3+1,len(cleaned_jets)):
-                        
-                    if found:
-                        break
-
-                    if i1 == i2 or i1 == i3 or i1 == i4 or i2 == i3 or i2 == i4 or i3 == i4:
-                        continue
-
-                    if jet_btagdeepb[cleaned_jets[i1]] < 0.8953 or jet_btagdeepb[cleaned_jets[i2]] < 0.8953 or jet_pt[cleaned_jets[i1]] < 30 or jet_pt[cleaned_jets[i2]] < 30 or abs(jet_eta[cleaned_jets[i1]]) > 2.5 or abs(jet_eta[cleaned_jets[i2]]) > 2.5:
-                        continue
-                            
-                    if jet_btagdeepb[cleaned_jets[i3]] > 0.2217 or jet_btagdeepb[cleaned_jets[i4]] > 0.2217 or jet_pt[cleaned_jets[i3]] < 30 or jet_pt[cleaned_jets[i4]] < 30 or abs(jet_eta[cleaned_jets[i3]]) > 4.7 or abs(jet_eta[cleaned_jets[i4]]) > 4.7:
-                        continue
-                                
-                    found = True
-                        
-                    builder.begin_tuple(8)
-                    builder.index(0).integer(cleaned_jets[i1])
-                    builder.index(1).integer(cleaned_jets[i2])
-                    builder.index(2).integer(cleaned_jets[i3])
-                    builder.index(3).integer(cleaned_jets[i4])
-
-                    if len(tight_muons) > 0:
-                        builder.index(4).integer(tight_muons[0])
-                        builder.index(5).integer(-1)
-                    elif len(tight_electrons) > 0:
-                        builder.index(4).integer(-1)
-                        builder.index(5).integer(tight_electrons[0])
-
-                    nextrajets=0
-                    nextrabjets=0
-                    for i5 in range(len(cleaned_jets)):
-                        if i5 == i1 or i5 == i2 or i5 == i3 or i5 == i4:
-                            continue
-                            
-                        if jet_pt[cleaned_jets[i5]] < 30 or abs(jet_eta[cleaned_jets[i2]]) > 4.7:
-                            continue
-
-                        nextrajets=nextrajets+1
-
-                        if jet_btagdeepb[cleaned_jets[i5]] > 0.2217:
-                            nextrabjets += 1
-
-                    builder.index(6).integer(nextrajets)
-                    builder.index(7).integer(nextrabjets)
-                    
-                    builder.end_tuple()    
-
-    builder.end_list()                  
-                        
-@numba.njit
-def select_events(hlt_isotkmu24,hlt_isomu24,hlt_ele27wptightgsf,hlt_isomu27,hlt_ele32wptightgsfl1doubleeg,hlt_ele32wptightgsf,muon_pt,muon_eta,muon_phi,muon_tightid,muon_pfreliso04all,electron_pt,electron_eta,electron_phi,electron_deltaetasc,electron_dxy,electron_dz,electron_cutbased,jet_pt,jet_eta,jet_phi,jet_btagdeepb,jet_pt_jes_up,jet_pt_jer_up,fatjet_pt,fatjet_eta,fatjet_phi,fatjet_msoftdrop,met_pt,met_ptjesup,met_ptjerup,dataset,builder_merged,builder_resolved,builder_resolved_jesup,builder_resolved_jerup):
-
-    for i0 in range(len(muon_pt)):
-
-        pass_hlt = True
-
-        if dataset == 'singlemuon':
-            if year == "2016":
-                if not hlt_isotkmu24[i0] and not hlt_isomu24[i0]:
-                    pass_hlt = False
-            elif year == "2017":
-                if not hlt_isomu27[i0]:
-                    pass_hlt = False
-            elif year == "2018":
-                if not hlt_isomu24[i0]:
-                    pass_hlt = False
-        elif dataset == 'singleelectron':
-            if year == "2016":
-                if hlt_isotkmu24[i0] or hlt_isomu24[i0] or not hlt_ele27wptightgsf[i0]:
-                    pass_hlt = False
-            elif year == "2017":
-                if hlt_isomu27[i0] or not hlt_ele32wptightgsfl1doubleeg[i0]:
-                    pass_hlt = False
-            elif year == "2018":
-                if hlt_isomu24[i0] or not hlt_ele32wptightgsf[i0]:
-                    pass_hlt = False
-        else: #MC
-            if year == "2016":
-                if not hlt_isotkmu24[i0] and not hlt_isomu24[i0] and not hlt_ele27wptightgsf[i0]:
-                    pass_hlt = False
-            elif year == "2017":
-                if not hlt_isomu27[i0] and not hlt_ele32wptightgsfl1doubleeg[i0]:
-                    pass_hlt = False
-            elif year == "2018":
-                if not hlt_ele32wptightgsf[i0] and not hlt_isomu24[i0]:
-                    pass_hlt = False
-
-        if not pass_hlt:
-            builder_merged.begin_list()                     
-            builder_merged.end_list()                     
-            builder_resolved.begin_list()
-            builder_resolved.end_list()
-            builder_resolved_jesup.begin_list()
-            builder_resolved_jesup.end_list()
-            builder_resolved_jerup.begin_list()
-            builder_resolved_jerup.end_list()
-            continue
-
-        select_event_merged(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],fatjet_pt[i0],fatjet_eta[i0],fatjet_phi[i0],fatjet_msoftdrop[i0],met_pt[i0],dataset,builder_merged)
-
-        select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_pt[i0],dataset,builder_resolved)
-
-        if dataset not in ['singleelectron','singlemuon','egamma']:
-
-            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jes_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_ptjesup[i0],dataset,builder_resolved_jesup)
-            select_event_resolved(muon_pt[i0],muon_eta[i0],muon_phi[i0],muon_tightid[i0],muon_pfreliso04all[i0],electron_pt[i0],electron_eta[i0],electron_phi[i0],electron_deltaetasc[i0],electron_dxy[i0],electron_dz[i0],electron_cutbased[i0],jet_pt_jer_up[i0],jet_eta[i0],jet_phi[i0],jet_btagdeepb[i0],met_ptjerup[i0],dataset,builder_resolved_jerup)
-        else:
-            builder_resolved_jesup.begin_list()
-            builder_resolved_jesup.end_list()
-            builder_resolved_jerup.begin_list()
-            builder_resolved_jerup.end_list()    
-        
-    return [builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged]
-                        
 class EwkwhjjProcessor(processor.ProcessorABC):
     def __init__(self):
         self._accumulator = processor.dict_accumulator({
@@ -490,52 +162,52 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_pileupUp': hist.Hist(
+            'sel1_bdtscore_binning1_pileupup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_pileupDown': hist.Hist(
+            'sel1_bdtscore_binning1_pileupdown': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_prefireUp': hist.Hist(
+            'sel1_bdtscore_binning1_prefireup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_electronidsfUp': hist.Hist(
+            'sel1_bdtscore_binning1_electronidsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_electronrecosfUp': hist.Hist(
+            'sel1_bdtscore_binning1_electronrecosfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_muonidsfUp': hist.Hist(
+            'sel1_bdtscore_binning1_muonidsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_muonisosfUp': hist.Hist(
+            'sel1_bdtscore_binning1_muonisosfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_muonhltsfUp': hist.Hist(
+            'sel1_bdtscore_binning1_muonhltsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_JESUp': hist.Hist(
+            'sel1_bdtscore_binning1_jesup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_JERUp': hist.Hist(
+            'sel1_bdtscore_binning1_jerup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
@@ -560,20 +232,20 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel1_vbsdijetmass_binning1': hist.Hist(
+            'sel1_vbfdijetmass_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 19, 100, 2000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel1_vbsdijetmass_binning2': hist.Hist(
+            'sel1_vbfdijetmass_binning2': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 39, 100, 4000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
             ),
-            'sel1_vbsdijetabsdeta_binning1': hist.Hist(
+            'sel1_vbfdijetabsdeta_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetabsdeta', 'VBS dijet $\Delta \eta$', 55, 2.5, 8),
+                hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
             ),
             'sel1_leptonpt_binning1': hist.Hist(
                 'Events',
@@ -590,37 +262,37 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_pileupUp': hist.Hist(
+            'sel2_bdtscore_binning1_pileupup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_pileupDown': hist.Hist(
+            'sel2_bdtscore_binning1_pileupdown': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_prefireUp': hist.Hist(
+            'sel2_bdtscore_binning1_prefireup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_electronidsfUp': hist.Hist(
+            'sel2_bdtscore_binning1_electronidsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_electronrecosfUp': hist.Hist(
+            'sel2_bdtscore_binning1_electronrecosfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_JESUp': hist.Hist(
+            'sel2_bdtscore_binning1_jesup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_JERUp': hist.Hist(
+            'sel2_bdtscore_binning1_jerup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
@@ -645,20 +317,20 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel2_vbsdijetmass_binning1': hist.Hist(
+            'sel2_vbfdijetmass_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 19, 100, 2000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel2_vbsdijetmass_binning2': hist.Hist(
+            'sel2_vbfdijetmass_binning2': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 39, 100, 4000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
             ),
-            'sel2_vbsdijetabsdeta_binning1': hist.Hist(
+            'sel2_vbfdijetabsdeta_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetabsdeta', 'VBS dijet $\Delta \eta$', 55, 2.5, 8),
+                hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
             ),
             'sel2_leptonpt_binning1': hist.Hist(
                 'Events',
@@ -675,52 +347,52 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_pileupUp': hist.Hist(
+            'sel3_bdtscore_binning1_pileupup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_pileupDown': hist.Hist(
+            'sel3_bdtscore_binning1_pileupdown': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_prefireUp': hist.Hist(
+            'sel3_bdtscore_binning1_prefireup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_electronidsfUp': hist.Hist(
+            'sel3_bdtscore_binning1_electronidsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_electronrecosfUp': hist.Hist(
+            'sel3_bdtscore_binning1_electronrecosfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_muonidsfUp': hist.Hist(
+            'sel3_bdtscore_binning1_muonidsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_muonisosfUp': hist.Hist(
+            'sel3_bdtscore_binning1_muonisosfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_muonhltsfUp': hist.Hist(
+            'sel3_bdtscore_binning1_muonhltsfup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_JESUp': hist.Hist(
+            'sel3_bdtscore_binning1_jesup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_JERUp': hist.Hist(
+            'sel3_bdtscore_binning1_jerup': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
@@ -745,20 +417,20 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel3_vbsdijetmass_binning1': hist.Hist(
+            'sel3_vbfdijetmass_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 19, 100, 2000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel3_vbsdijetmass_binning2': hist.Hist(
+            'sel3_vbfdijetmass_binning2': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 39, 100, 4000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
             ),
-            'sel3_vbsdijetabsdeta_binning1': hist.Hist(
+            'sel3_vbfdijetabsdeta_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetabsdeta', 'VBS dijet $\Delta \eta$', 55, 2.5, 8),
+                hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
             ),
             'sel3_leptonpt_binning1': hist.Hist(
                 'Events',
@@ -780,15 +452,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel4_vbsdijetmass_binning1': hist.Hist(
+            'sel4_vbfdijetmass_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 19, 100, 2000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel4_vbsdijetmass_binning2': hist.Hist(
+            'sel4_vbfdijetmass_binning2': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 4, 100, 500),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
             ),
             'sel4_leptonpt_binning1': hist.Hist(
                 'Events',
@@ -810,15 +482,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel5_vbsdijetmass_binning1': hist.Hist(
+            'sel5_vbfdijetmass_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 19, 100, 2000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel5_vbsdijetmass_binning2': hist.Hist(
+            'sel5_vbfdijetmass_binning2': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 4, 100, 500),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
             ),
             'sel5_leptonpt_binning1': hist.Hist(
                 'Events',
@@ -840,15 +512,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 hist.Cat('dataset', 'Dataset'),
                 hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel6_vbsdijetmass_binning1': hist.Hist(
+            'sel6_vbfdijetmass_binning1': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 19, 100, 2000),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel6_vbsdijetmass_binning2': hist.Hist(
+            'sel6_vbfdijetmass_binning2': hist.Hist(
                 'Events',
                 hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbsdijetmass', 'VBS dijet mass [GeV]', 4, 100, 500),
+                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
             ),
             'sel6_leptonpt_binning1': hist.Hist(
                 'Events',
@@ -956,6 +628,40 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         if dataset in ['singleelectron','singlemuon','egamma']:
             events = events[lumimask(events.run,events.luminosityBlock)]
 
+        events = events[(events.PuppiMET.pt > 30) | (events.PuppiMET.ptJERUp > 30) | (events.PuppiMET.ptJESUp > 30)]    
+
+        if year == "2016":
+            if dataset == 'singlemuon':
+                events = events[events.HLT.IsoTkMu24 | events.HLT.IsoMu24]
+            elif dataset == 'singleelectron':
+                events = events[events.HLT.IsoTkMu24 | events.HLT.IsoMu24 | events.HLT.Ele27_WPTight_Gsf]
+            else:    
+                events = events[events.HLT.IsoTkMu24 | events.HLT.IsoMu24 | events.HLT.Ele27_WPTight_Gsf]
+        elif year == "2017":
+            if dataset == 'singlemuon':
+                events = events[events.HLT.IsoMu27]
+            elif dataset == 'singleelectron':
+                events = events[events.HLT.Ele32_WPTight_Gsf_L1DoubleEG]    
+            else:
+                events = events[events.HLT.IsoMu27 | events.HLT.Ele32_WPTight_Gsf_L1DoubleEG]        
+        elif year == "2018":
+            if dataset == 'singlemuon':
+                events = events[events.HLT.IsoMu24]
+            elif dataset == 'egamma':    
+                events = events[events.HLT.Ele32_WPTight_Gsf]
+            else:
+                events = events[events.HLT.IsoMu24 |events.HLT.Ele32_WPTight_Gsf]
+
+        events = events[(ak.num(events.Jet) > 3) | ((ak.num(events.Jet) > 1) & (ak.num(events.FatJet) > 0))]
+
+        events = events[(ak.num(events.Electron) > 0) | (ak.num(events.Muon) > 0)]
+
+        tight_muons = events.Muon[events.Muon.tightId & (events.Muon.pfRelIso04_all < 0.15) & (events.Muon.pt > 26) & (abs(events.Muon.eta) < 2.4)]
+
+        loose_not_tight_muons = events.Muon[events.Muon.tightId & (events.Muon.pfRelIso04_all < 0.4) & (events.Muon.pfRelIso04_all > 0.15) & (events.Muon.pt > 20) & (abs(events.Muon.eta) < 2.4)]
+
+        tight_electrons = events.Electron[(events.Electron.pt > 30) & (events.Electron.cutBased >= 3) & (events.Electron.eta + events.Electron.deltaEtaSC < 2.5) & ((abs(events.Electron.dz) < 0.1) & (abs(events.Electron.dxy) < 0.05) & (events.Electron.eta + events.Electron.deltaEtaSC < 1.479)) | ((abs(events.Electron.dz) < 0.2) & (abs(events.Electron.dxy) < 0.1) & (events.Electron.eta + events.Electron.deltaEtaSC > 1.479))]
+
         if dataset not in ['singleelectron','singlemuon','egamma']:
 
             name_map = jec_stack.blank_name_map
@@ -981,139 +687,166 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             corrected_jets = jet_factory.build(jets, lazy_cache=events_cache)    
 
             jet_pt = corrected_jets.pt
-            jet_pt_jes_up = corrected_jets.JES_jes.up.pt
-            jet_pt_jer_up = corrected_jets.JER.up.pt
+            jet_pt_jesup = corrected_jets.JES_jes.up.pt
+            jet_pt_jerup = corrected_jets.JER.up.pt
 
         else:    
 
-            jet_pt = events.Jet.pt
-            jet_pt_jes_up = events.Jet.pt
-            jet_pt_jer_up = events.Jet.pt
-
             corrected_jets = events.Jet
 
-        if year == "2016":
-            hlt_isotkmu24 = events.HLT.IsoTkMu24
-            hlt_isomu24 = events.HLT.IsoMu24
-            hlt_ele27wptightgsf = events.HLT.Ele27_WPTight_Gsf
-            hlt_isomu27 = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsf = ak.Array(len(events)*[False])
-        elif year == "2017":
-            hlt_isotkmu24 = ak.Array(len(events)*[False])
-            hlt_isomu24 = ak.Array(len(events)*[False])
-            hlt_ele27wptightgsf = ak.Array(len(events)*[False])
-            hlt_isomu27 = events.HLT.IsoMu27
-            hlt_ele32wptightgsfl1doubleeg = events.HLT.Ele32_WPTight_Gsf_L1DoubleEG
-            hlt_ele32wptightgsf = ak.Array(len(events)*[False])
-        elif year == "2018":
-            hlt_isotkmu24 = ak.Array(len(events)*[False])
-            hlt_isomu24 = events.HLT.IsoMu24
-            hlt_ele27wptightgsf = ak.Array(len(events)*[False])
-            hlt_isomu27 = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsfl1doubleeg = ak.Array(len(events)*[False])
-            hlt_ele32wptightgsf = events.HLT.Ele32_WPTight_Gsf
+            jet_pt = events.Jet.pt
+            jet_pt_jesup = events.Jet.pt
+            jet_pt_jerup = events.Jet.pt
 
-        builder_resolved,builder_resolved_jesup,builder_resolved_jerup,builder_merged = select_events(ak.without_parameters(ak.Array(hlt_isotkmu24)),ak.without_parameters(ak.Array(hlt_isomu24)),ak.without_parameters(ak.Array(hlt_ele27wptightgsf)),ak.without_parameters(ak.Array(hlt_isomu27)),ak.without_parameters(ak.Array(hlt_ele32wptightgsfl1doubleeg)),ak.without_parameters(ak.Array(hlt_ele32wptightgsf)),ak.without_parameters(ak.Array(events.Muon.pt)),ak.without_parameters(ak.Array(events.Muon.eta)),ak.without_parameters(ak.Array(events.Muon.phi)),ak.without_parameters(ak.Array(events.Muon.tightId)),ak.without_parameters(ak.Array(events.Muon.pfRelIso04_all)),ak.without_parameters(ak.Array(events.Electron.pt)),ak.without_parameters(ak.Array(events.Electron.eta)),ak.without_parameters(ak.Array(events.Electron.phi)),ak.without_parameters(ak.Array(events.Electron.deltaEtaSC)),ak.without_parameters(ak.Array(events.Electron.dxy)),ak.without_parameters(ak.Array(events.Electron.dz)),ak.without_parameters(ak.Array(events.Electron.cutBased)),ak.without_parameters(ak.Array(events.Jet.pt)),ak.without_parameters(ak.Array(events.Jet.eta)),ak.without_parameters(ak.Array(events.Jet.phi)),ak.without_parameters(ak.Array(events.Jet.btagDeepB)),ak.without_parameters(ak.Array(jet_pt_jes_up)),ak.without_parameters(ak.Array(jet_pt_jer_up)),ak.without_parameters(ak.Array(events.FatJet.pt)),ak.without_parameters(ak.Array(events.FatJet.eta)),ak.without_parameters(ak.Array(events.FatJet.phi)),ak.without_parameters(ak.Array(events.FatJet.msoftdrop)),ak.without_parameters(ak.Array(events.PuppiMET.pt)),ak.without_parameters(ak.Array(events.PuppiMET.ptJESUp)),ak.without_parameters(ak.Array(events.PuppiMET.ptJERUp)),dataset,ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder(),ak.ArrayBuilder())
-
-        particleindices = builder_resolved.snapshot()
-        particleindices_merged = builder_merged.snapshot()
 
         if dataset not in ['singleelectron','singlemuon','egamma']:
-            particleindices_JESUp = builder_resolved_jesup.snapshot()
-            particleindices_JERUp = builder_resolved_jerup.snapshot()
+            corrected_jets_jesup = ak.zip({
+                "pt": corrected_jets.JES_jes.up.pt,
+                "eta": corrected_jets.JES_jes.up.eta,
+                "phi": corrected_jets.JES_jes.up.phi,
+                "mass": corrected_jets.JES_jes.up.mass,
+                "charge": np.ones(len(corrected_jets.pt)),
+                "btagDeepB": corrected_jets.btagDeepB
+            }, with_name="PtEtaPhiMCandidate")    
+            
+            corrected_jets_jerup = ak.zip({
+                "pt": corrected_jets.JER.up.pt,
+                "eta": corrected_jets.JER.up.eta,
+                "phi": corrected_jets.JER.up.phi,
+                "mass": corrected_jets.JER
+                .up.mass,
+                "charge": np.ones(len(corrected_jets.pt)),
+                "btagDeepB": corrected_jets.btagDeepB
+            }, with_name="PtEtaPhiMCandidate")    
 
-        basecut = ak.num(particleindices) != 0
+        corrected_jets = ak.zip({
+            "pt": corrected_jets.pt,
+            "eta": corrected_jets.eta,
+            "phi": corrected_jets.phi,
+            "mass": corrected_jets.mass,
+            "charge": np.ones(len(corrected_jets.pt)),
+            "btagDeepB": corrected_jets.btagDeepB
+        }, with_name="PtEtaPhiMCandidate")    
 
         if dataset not in ['singleelectron','singlemuon','egamma']:
-            basecut_JESUp = ak.num(particleindices_JESUp) != 0
-            basecut_JERUp = ak.num(particleindices_JERUp) != 0
+            b_jets_jesup = corrected_jets_jesup[(events.Jet.cleanmask == 1) & (jet_pt_jesup > 30) & (abs(events.Jet.eta) < 2.5) & (events.Jet.btagDeepB > 0.8953)]
+            vbf_jets_jesup = corrected_jets_jesup[(events.Jet.cleanmask == 1) & (jet_pt_jesup > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB < 0.2217)]
+            nextrajets_jesup = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt_jesup > 30) & (abs(events.Jet.eta) < 4.7)]) - 4
+            nextrabjets_jesup = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt_jesup > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB > 0.2217)]) - 2
 
-        basecut_merged = ak.num(particleindices_merged) != 0
+            b_jets_jerup = corrected_jets_jerup[(events.Jet.cleanmask == 1) & (jet_pt_jerup > 30) & (abs(events.Jet.eta) < 2.5) & (events.Jet.btagDeepB > 0.8953)]
+            vbf_jets_jerup = corrected_jets_jerup[(events.Jet.cleanmask == 1) & (jet_pt_jerup > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB < 0.2217)]
+            nextrajets_jerup = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt_jerup > 30) & (abs(events.Jet.eta) < 4.7)]) - 4
+            nextrabjets_jerup = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt_jerup > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB > 0.2217)]) - 2
+
+            basecut_jesup = (ak.num(b_jets_jesup) > 1) & (ak.num(vbf_jets_jesup) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.ptJESUp > 30)
+            events_jesup = events[basecut_jesup]
+            b_jets_jesup = b_jets_jesup[basecut_jesup]
+            vbf_jets_jesup = vbf_jets_jesup[basecut_jesup]
+            tight_muons_jesup = tight_muons[basecut_jesup]
+            loose_not_tight_muons_jesup = loose_not_tight_muons[basecut_jesup]
+            tight_electrons_jesup = tight_electrons[basecut_jesup]
+            nextrajets_jesup = nextrajets_jesup[basecut_jesup]
+            nextrabjets_jesup = nextrabjets_jesup[basecut_jesup]
+
+            basecut_jerup = (ak.num(b_jets_jerup) > 1) & (ak.num(vbf_jets_jerup) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.ptJESUp > 30)
+            events_jerup = events[basecut_jerup]
+            b_jets_jerup = b_jets_jerup[basecut_jerup]
+            vbf_jets_jerup = vbf_jets_jerup[basecut_jerup]
+            tight_muons_jerup = tight_muons[basecut_jerup]
+            loose_not_tight_muons_jerup = loose_not_tight_muons[basecut_jerup]
+            tight_electrons_jerup = tight_electrons[basecut_jerup]
+            nextrajets_jerup = nextrajets_jerup[basecut_jerup]
+            nextrabjets_jerup = nextrabjets_jerup[basecut_jerup]
+
+
+
+        fatjets = events.FatJet[(events.FatJet.pt > 250) & (abs(events.FatJet.eta) < 2.5) & (events.FatJet.msoftdrop > 50) & (events.FatJet.msoftdrop < 150)]    
+        b_jets = corrected_jets[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 2.5) & (events.Jet.btagDeepB > 0.8953)]
+        vbf_jets = corrected_jets[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB < 0.2217)]
+        nextrajets = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 4.7)]) - 4
+        nextrabjets = ak.num(events.Jet[(events.Jet.cleanmask == 1) & (jet_pt > 30) & (abs(events.Jet.eta) < 4.7) & (events.Jet.btagDeepB > 0.2217)]) - 2
+
+        basecut_merged = (ak.num(fatjets) > 0) & (ak.num(vbf_jets) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.pt > 30)
+        events_merged = events[basecut_merged]
+        fatjets_merged = fatjets[basecut_merged]
+        vbf_jets_merged = vbf_jets[basecut_merged]
+        tight_muons_merged = tight_muons[basecut_merged]
+        tight_electrons_merged = tight_electrons[basecut_merged]
+        nextrajets_merged = nextrajets[basecut_merged]
+        nextrabjets_merged = nextrabjets[basecut_merged]
+
+        basecut = (ak.num(b_jets) > 1) & (ak.num(vbf_jets) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.pt > 30)
+        events = events[basecut]
+        b_jets = b_jets[basecut]
+        vbf_jets = vbf_jets[basecut]
+        tight_muons = tight_muons[basecut]
+        tight_electrons = tight_electrons[basecut]
+        nextrajets = nextrajets[basecut]
+        nextrabjets = nextrabjets[basecut]
 
         if dataset in ['singleelectron','singlemuon','egamma']:
             dataset = 'data'
 
         if ak.any(basecut_merged):
-            particleindices_merged = particleindices_merged[basecut_merged]
-            events_merged = events[basecut_merged]
-            events_merged.FatJet[particleindices_merged['0']]
-            jets_merged = [events_merged.Jet[particleindices_merged[idx]] for idx in '12']
-            cut7 = ak.firsts((events_merged.FatJet[particleindices_merged['0']].mass > 50) & (events_merged.FatJet[particleindices_merged['0']].mass < 150) & ((jets_merged[0]+jets_merged[1]).mass > 500) & (abs(jets_merged[0].eta - jets_merged[1].eta) > 2.5) & (particleindices_merged['3'] != -1))
-            cut8 = ak.firsts((events_merged.FatJet[particleindices_merged['0']].mass > 50) & (events_merged.FatJet[particleindices_merged['0']].mass < 150) & ((jets_merged[0]+jets_merged[1]).mass > 500) & (abs(jets_merged[0].eta - jets_merged[1].eta) > 2.5) & (particleindices_merged['4'] != -1))
-#            cut9_merged = cut7_merged | cut8_merged
+            cut7 = (fatjets_merged[:,0].mass > 50) & (fatjets_merged[:,0].mass < 150) & ((vbf_jets_merged[:,0]+vbf_jets_merged[:,1]).mass > 500) & (abs(vbf_jets_merged[:,0].eta - vbf_jets_merged[:,1].eta) > 2.5) & (ak.num(tight_muons_merged) > 0)
+            cut8 = (fatjets_merged[:,0].mass > 50) & (fatjets_merged[:,0].mass < 150) & ((vbf_jets_merged[:,0]+vbf_jets_merged[:,1]).mass > 500) & (abs(vbf_jets_merged[:,0].eta - vbf_jets_merged[:,1].eta) > 2.5) & (ak.num(tight_electrons_merged) > 0)
+#            cut9 = cut7 | cut8
 
-        if dataset != 'data' and ak.any(basecut_JESUp):
-            particleindices_JESUp = particleindices_JESUp[basecut_JESUp]
-            events_JESUp = events[basecut_JESUp]
-            corrected_jets_JESUp = corrected_jets[basecut_JESUp] 
-            jets_JESUp = [corrected_jets_JESUp.JES_jes.up[particleindices_JESUp[idx]] for idx in '0123']
-#            jets_JESUp = [events_JESUp.Jet[particleindices_JESUp[idx]] for idx in '0123']
-            cut1_JESUp = ak.firsts(((jets_JESUp[0]+jets_JESUp[1]).mass > 50) & ((jets_JESUp[0]+jets_JESUp[1]).mass < 150) & ((jets_JESUp[2]+jets_JESUp[3]).mass > 500) & (abs(jets_JESUp[2].eta - jets_JESUp[3].eta) > 2.5) & (particleindices_JESUp['4'] != -1))
-            cut2_JESUp = ak.firsts(((jets_JESUp[0]+jets_JESUp[1]).mass > 50) & ((jets_JESUp[0]+jets_JESUp[1]).mass < 150) & ((jets_JESUp[2]+jets_JESUp[3]).mass > 500) & (abs(jets_JESUp[2].eta - jets_JESUp[3].eta) > 2.5) & (particleindices_JESUp['5'] != -1))
-#            cut3_JESUp = cut1_JESUp | cut2_JESUp
+        if dataset != 'data' and ak.any(basecut_jesup):
+            cut1_jesup = ((b_jets_jesup[:,0]+b_jets_jesup[:,1]).mass > 50) & ((b_jets_jesup[:,0]+b_jets_jesup[:,1]).mass < 150) & ((vbf_jets_jesup[:,0]+vbf_jets_jesup[:,1]).mass > 500) & (abs(vbf_jets_jesup[:,0].eta - vbf_jets_jesup[:,1].eta) > 2.5) & (ak.num(tight_muons_jesup) > 0)
+            cut2_jesup = ((b_jets_jesup[:,0]+b_jets_jesup[:,1]).mass > 50) & ((b_jets_jesup[:,0]+b_jets_jesup[:,1]).mass < 150) & ((vbf_jets_jesup[:,0]+vbf_jets_jesup[:,1]).mass > 500) & (abs(vbf_jets_jesup[:,0].eta - vbf_jets_jesup[:,1].eta) > 2.5) & (ak.num(tight_electrons_jesup) > 0)
+#            cut3_jesup = cut1_jesup | cut2_jesup
 
-        if dataset != 'data' and ak.any(basecut_JERUp):
-            particleindices_JERUp = particleindices_JERUp[basecut_JERUp]
-            events_JERUp = events[basecut_JERUp]
-            corrected_jets_JERUp = corrected_jets[basecut_JERUp] 
-            jets_JERUp= [corrected_jets_JERUp.JER.up[particleindices_JERUp[idx]] for idx in '0123']        
-#            jets_JERUp= [events_JERUp.Jet[particleindices_JERUp[idx]] for idx in '0123']        
-            cut1_JERUp = ak.firsts(((jets_JERUp[0]+jets_JERUp[1]).mass > 50) & ((jets_JERUp[0]+jets_JERUp[1]).mass < 150) & ((jets_JERUp[2]+jets_JERUp[3]).mass > 500) & (abs(jets_JERUp[2].eta - jets_JERUp[3].eta) > 2.5) & (particleindices_JERUp['4'] != -1))
-            cut2_JERUp = ak.firsts(((jets_JERUp[0]+jets_JERUp[1]).mass > 50) & ((jets_JERUp[0]+jets_JERUp[1]).mass < 150) & ((jets_JERUp[2]+jets_JERUp[3]).mass > 500) & (abs(jets_JERUp[2].eta - jets_JERUp[3].eta) > 2.5) & (particleindices_JERUp['5'] != -1))
-#            cut3_JERUp = cut1_JERUp | cut2_JERUp
+        if dataset != 'data' and ak.any(basecut_jerup):
+            cut1_jerup = ((b_jets_jerup[:,0]+b_jets_jerup[:,1]).mass > 50) & ((b_jets_jerup[:,0]+b_jets_jerup[:,1]).mass < 150) & ((vbf_jets_jerup[:,0]+vbf_jets_jerup[:,1]).mass > 500) & (abs(vbf_jets_jerup[:,0].eta - vbf_jets_jerup[:,1].eta) > 2.5) & (ak.num(tight_muons_jerup) > 0)
+            cut2_jerup = ((b_jets_jerup[:,0]+b_jets_jerup[:,1]).mass > 50) & ((b_jets_jerup[:,0]+b_jets_jerup[:,1]).mass < 150) & ((vbf_jets_jerup[:,0]+vbf_jets_jerup[:,1]).mass > 500) & (abs(vbf_jets_jerup[:,0].eta - vbf_jets_jerup[:,1].eta) > 2.5) & (ak.num(tight_electrons_jerup) > 0)
+#            cut3_jerup = cut1_jerup | cut2_jerup
 
-        if ak.any(basecut):
-            particleindices = particleindices[basecut]
-            events = events[basecut]
-            jets = [events.Jet[particleindices[idx]] for idx in '0123']
-            cut1 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 500) & (abs(jets[2].eta - jets[3].eta) > 2.5) & (particleindices['4'] != -1))
-            cut2 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 500) & (abs(jets[2].eta - jets[3].eta) > 2.5) & (particleindices['5'] != -1))
+        cut1 = ((b_jets[:,0] + b_jets[:,1]).mass > 50) & ((b_jets[:,0] + b_jets[:,1]).mass < 150) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass > 500) & (abs(vbf_jets[:,0].eta - vbf_jets[:,1].eta) > 2.5) & (ak.num(tight_muons) > 0)
+        cut2 = ((b_jets[:,0] + b_jets[:,1]).mass > 50) & ((b_jets[:,0] + b_jets[:,1]).mass < 150) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass > 500) & (abs(vbf_jets[:,0].eta - vbf_jets[:,1].eta) > 2.5) & (ak.num(tight_electrons) > 0)
 #            cut3 = cut1 | cut2
-            cut4 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 100) & ((jets[2]+jets[3]).mass < 500) & (particleindices['4'] != -1))
-            cut5 = ak.firsts(((jets[0]+jets[1]).mass > 50) & ((jets[0]+jets[1]).mass < 150) & ((jets[2]+jets[3]).mass > 100) & ((jets[2]+jets[3]).mass < 500) & (particleindices['5'] != -1))
+        cut4 = ((b_jets[:,0] + b_jets[:,1]).mass > 50) & ((b_jets[:,0] + b_jets[:,1]).mass < 150) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass > 100) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass < 500) & (ak.num(tight_muons) > 0)
+        cut5 = ((b_jets[:,0] + b_jets[:,1]).mass > 50) & ((b_jets[:,0] + b_jets[:,1]).mass < 150) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass > 100) & ((vbf_jets[:,0] + vbf_jets[:,1]).mass < 500) & (ak.num(tight_electrons) > 0)
 #            cut6 = cut4 | cut5
 
         if ak.any(basecut_merged) and ak.any(cut7):
 
-            sel7_particleindices = particleindices_merged[cut7]
-        
             sel7_events = events_merged[cut7]
-            
-            sel7_fatjets = sel7_events.FatJet[sel7_particleindices['0']]
-
-            sel7_jets = [sel7_events.Jet[sel7_particleindices[idx]] for idx in '12']
-
-            sel7_muons = sel7_events.Muon[sel7_particleindices['3']]
+            sel7_fatjets = fatjets_merged[cut7]
+            sel7_vbf_jets = vbf_jets_merged[cut7]
+            sel7_muons = tight_muons_merged[cut7][:,0]
+            sel7_nextrajets = nextrajets_merged[cut7]
+            sel7_nextrabjets = nextrabjets_merged[cut7]
 
             sel7_X = pandas.DataFrame(np.transpose(np.vstack((
-                ak.to_numpy(ak.firsts(sel7_fatjets).pt).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).eta).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).phi).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).btagHbb).data,
-                ak.to_numpy(ak.firsts(sel7_fatjets).msoftdrop).data,
-                ak.to_numpy(ak.firsts(sel7_particleindices['5'])).data,
-                ak.to_numpy(ak.firsts(sel7_particleindices['6'])).data,
+                ak.to_numpy(sel7_fatjets[:,0].pt),
+                ak.to_numpy(sel7_fatjets[:,0].eta),
+                ak.to_numpy(sel7_fatjets[:,0].phi),
+                ak.to_numpy(sel7_fatjets[:,0].btagDeepB),
+                ak.to_numpy(sel7_fatjets[:,0].btagHbb),
+                ak.to_numpy(sel7_fatjets[:,0].msoftdrop),
+                ak.to_numpy(sel7_nextrajets),
+                ak.to_numpy(sel7_nextrabjets),
                 np.zeros(len(sel7_events)),
-                np.sign(ak.to_numpy(ak.firsts(sel7_muons).charge).data+1),
-                ak.to_numpy(ak.firsts(sel7_muons).pt).data,
-                ak.to_numpy(ak.firsts(sel7_muons).eta).data,
-                ak.to_numpy(ak.firsts(sel7_muons).phi).data,
+                np.sign(ak.to_numpy(sel7_muons.charge)+1),
+                ak.to_numpy(sel7_muons.pt),
+                ak.to_numpy(sel7_muons.eta),
+                ak.to_numpy(sel7_muons.phi),
                 ak.to_numpy(sel7_events.PuppiMET.pt),
                 ak.to_numpy(sel7_events.PuppiMET.phi),
-                ak.to_numpy(ak.firsts(sel7_jets[0]).pt).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).pt).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).eta).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).phi).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).phi).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel7_jets[1]).btagDeepB).data,
-                ak.to_numpy(ak.firsts((sel7_jets[0]+sel7_jets[1]).mass)).data,
-                ak.to_numpy(ak.firsts(sel7_jets[0]).eta - ak.firsts(sel7_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel7_muons+sel7_jets[0]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_jets[0]).phi))))).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel7_muons+sel7_jets[1]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_jets[1]).phi))))).data))))
+                ak.to_numpy(sel7_vbf_jets[:,0].pt),
+                ak.to_numpy(sel7_vbf_jets[:,1].pt),
+                ak.to_numpy(sel7_vbf_jets[:,0].eta),
+                ak.to_numpy(sel7_vbf_jets[:,1].eta),
+                ak.to_numpy(sel7_vbf_jets[:,0].phi),
+                ak.to_numpy(sel7_vbf_jets[:,1].phi),
+                ak.to_numpy(sel7_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel7_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel7_vbf_jets[:,0]+sel7_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel7_vbf_jets[:,0].eta - sel7_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel7_muons+sel7_vbf_jets[:,0]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_vbf_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel7_muons+sel7_vbf_jets[:,1]).pt*sel7_events.PuppiMET.pt*(1 - np.cos(sel7_events.PuppiMET.phi - (sel7_muons+sel7_vbf_jets[:,1]).phi))))))))
 
             sel7_d = xgb.DMatrix(sel7_X)
 
@@ -1122,20 +855,20 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             if dataset == 'data':
                 sel7_weight = np.ones(len(sel7_events))
             else:    
-                sel7_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt))
-                sel7_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel7_muons.eta), sel7_muons.pt))
-                sel7_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel7_muons.eta), sel7_muons.pt))
+                sel7_muonidsf = evaluator['muonidsf'](abs(sel7_muons.eta), sel7_muons.pt)
+                sel7_muonisosf = evaluator['muonisosf'](abs(sel7_muons.eta), sel7_muons.pt)
+                sel7_muonhltsf = evaluator['muonhltsf'](abs(sel7_muons.eta), sel7_muons.pt)
                 sel7_weight = np.sign(sel7_events.Generator.weight)*sel7_events.L1PreFiringWeight.Nom*sel7_muonidsf*sel7_muonisosf*sel7_muonhltsf
 
             output['sel7_higgsjetmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetmass=ak.firsts(sel7_events.FatJet[sel7_particleindices['0']].mass),
+                higgsjetmass=sel7_fatjets[:,0].mass,
                 weight=sel7_weight
             )
 
             output['sel7_higgsjetsoftdropmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetsoftdropmass=ak.firsts(sel7_events.FatJet[sel7_particleindices['0']].msoftdrop),
+                higgsjetsoftdropmass=sel7_fatjets[:,0].msoftdrop,
                 weight=sel7_weight
             )
 
@@ -1159,13 +892,13 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel9_higgsjetmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetmass=ak.firsts(sel7_events.FatJet[sel7_particleindices['0']].mass),
+                higgsjetmass=sel7_fatjets[:,0].mass,
                 weight=sel7_weight
             )
 
             output['sel9_higgsjetsoftdropmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetsoftdropmass=ak.firsts(sel7_events.FatJet[sel7_particleindices['0']].msoftdrop),
+                higgsjetsoftdropmass=sel7_fatjets[:,0].msoftdrop,
                 weight=sel7_weight
             )
 
@@ -1189,44 +922,41 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
         if ak.any(basecut_merged) and ak.any(cut8):
 
-            sel8_particleindices = particleindices_merged[cut8]
-        
             sel8_events = events_merged[cut8]
-            
-            sel8_fatjets = sel8_events.FatJet[sel8_particleindices['0']]
-
-            sel8_jets = [sel8_events.Jet[sel8_particleindices[idx]] for idx in '12']
-
-            sel8_electrons = sel8_events.Electron[sel8_particleindices['4']]
+            sel8_fatjets = fatjets_merged[cut8]
+            sel8_vbf_jets = vbf_jets_merged[cut8]
+            sel8_electrons = tight_electrons_merged[cut8][:,0]
+            sel8_nextrajets = nextrajets_merged[cut8]
+            sel8_nextrabjets = nextrabjets_merged[cut8]
 
             sel8_X = pandas.DataFrame(np.transpose(np.vstack((
-                ak.to_numpy(ak.firsts(sel8_fatjets).pt).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).eta).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).phi).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).btagHbb).data,
-                ak.to_numpy(ak.firsts(sel8_fatjets).msoftdrop).data,
-                ak.to_numpy(ak.firsts(sel8_particleindices['5'])).data,
-                ak.to_numpy(ak.firsts(sel8_particleindices['6'])).data,
+                ak.to_numpy(sel8_fatjets[:,0].pt),
+                ak.to_numpy(sel8_fatjets[:,0].eta),
+                ak.to_numpy(sel8_fatjets[:,0].phi),
+                ak.to_numpy(sel8_fatjets[:,0].btagDeepB),
+                ak.to_numpy(sel8_fatjets[:,0].btagHbb),
+                ak.to_numpy(sel8_fatjets[:,0].msoftdrop),
+                ak.to_numpy(sel8_nextrajets),
+                ak.to_numpy(sel8_nextrabjets),
                 np.ones(len(sel8_events)),
-                np.sign(ak.to_numpy(ak.firsts(sel8_electrons).charge).data+1),
-                ak.to_numpy(ak.firsts(sel8_electrons).pt).data,
-                ak.to_numpy(ak.firsts(sel8_electrons).eta).data,
-                ak.to_numpy(ak.firsts(sel8_electrons).phi).data,
+                np.sign(ak.to_numpy(sel8_electrons.charge)+1),
+                ak.to_numpy(sel8_electrons.pt),
+                ak.to_numpy(sel8_electrons.eta),
+                ak.to_numpy(sel8_electrons.phi),
                 ak.to_numpy(sel8_events.PuppiMET.pt),
                 ak.to_numpy(sel8_events.PuppiMET.phi),
-                ak.to_numpy(ak.firsts(sel8_jets[0]).pt).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).pt).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).eta).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).phi).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).phi).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).btagDeepB).data,
-                ak.to_numpy(ak.firsts(sel8_jets[1]).btagDeepB).data,
-                ak.to_numpy(ak.firsts((sel8_jets[0]+sel8_jets[1]).mass)).data,
-                ak.to_numpy(ak.firsts(sel8_jets[0]).eta - ak.firsts(sel8_jets[1]).eta).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel8_electrons+sel8_jets[0]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_jets[0]).phi))))).data,
-                ak.to_numpy(ak.firsts(np.sqrt(2*(sel8_electrons+sel8_jets[1]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_jets[1]).phi))))).data))))
+                ak.to_numpy(sel8_vbf_jets[:,0].pt),
+                ak.to_numpy(sel8_vbf_jets[:,1].pt),
+                ak.to_numpy(sel8_vbf_jets[:,0].eta),
+                ak.to_numpy(sel8_vbf_jets[:,1].eta),
+                ak.to_numpy(sel8_vbf_jets[:,0].phi),
+                ak.to_numpy(sel8_vbf_jets[:,1].phi),
+                ak.to_numpy(sel8_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel8_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel8_vbf_jets[:,0]+sel8_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel8_vbf_jets[:,0].eta - sel8_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel8_electrons+sel8_vbf_jets[:,0]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_vbf_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel8_electrons+sel8_vbf_jets[:,1]).pt*sel8_events.PuppiMET.pt*(1 - np.cos(sel8_events.PuppiMET.phi - (sel8_electrons+sel8_vbf_jets[:,1]).phi))))))))
 
             sel8_d = xgb.DMatrix(sel8_X)
 
@@ -1235,19 +965,19 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             if dataset == 'data':
                 sel8_weight = np.ones(len(sel8_events))
             else:    
-                sel8_electronidsf = ak.firsts(evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt))
-                sel8_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel8_electrons.eta, sel8_electrons.pt))
+                sel8_electronidsf = evaluator['electronidsf'](sel8_electrons.eta, sel8_electrons.pt)
+                sel8_electronrecosf = evaluator['electronrecosf'](sel8_electrons.eta, sel8_electrons.pt)
                 sel8_weight = np.sign(sel8_events.Generator.weight)*sel8_events.L1PreFiringWeight.Nom*sel8_electronidsf*sel8_electronrecosf
 
             output['sel8_higgsjetmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetmass=ak.firsts(sel8_events.FatJet[sel8_particleindices['0']].mass),
+                higgsjetmass=sel8_fatjets[:,0].mass,
                 weight=sel8_weight
             )
 
             output['sel8_higgsjetsoftdropmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetsoftdropmass=ak.firsts(sel8_events.FatJet[sel8_particleindices['0']].msoftdrop),
+                higgsjetsoftdropmass=sel8_fatjets[:,0].msoftdrop,
                 weight=sel8_weight
             )
 
@@ -1271,13 +1001,13 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel9_higgsjetmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetmass=ak.firsts(sel8_events.FatJet[sel8_particleindices['0']].mass),
+                higgsjetmass=sel8_fatjets[:,0].mass,
                 weight=sel8_weight
             )
 
             output['sel9_higgsjetsoftdropmass_binning1'].fill(
                 dataset=dataset,
-                higgsjetsoftdropmass=ak.firsts(sel8_events.FatJet[sel8_particleindices['0']].msoftdrop),
+                higgsjetsoftdropmass=sel8_fatjets[:,0].msoftdrop,
                 weight=sel8_weight
             )
 
@@ -1299,101 +1029,187 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel8_weight
             )
 
-        if dataset != 'data' and ak.any(basecut_JESUp) and ak.any(cut1_JESUp):
+        if dataset != 'data' and ak.any(basecut_jesup) and ak.any(cut1_jesup):
 
-            sel1_JESUp_particleindices = particleindices_JESUp[cut1_JESUp]
-        
-            sel1_JESUp_events = events_JESUp[cut1_JESUp]
+            sel1_jesup_events = events_jesup[cut1_jesup]
+            sel1_jesup_b_jets = b_jets_jesup[cut1_jesup]
+            sel1_jesup_vbf_jets = vbf_jets_jesup[cut1_jesup]
+            sel1_jesup_muons = tight_muons_jesup[cut1_jesup][:,0]
+            sel1_jesup_nextrajets = nextrajets_jesup[cut1_jesup]
+            sel1_jesup_nextrabjets = nextrabjets_jesup[cut1_jesup]
 
-            sel1_JESUp_corrected_jets = corrected_jets_JESUp[cut1_JESUp]
-            
-            sel1_JESUp_jets = [sel1_JESUp_corrected_jets[sel1_JESUp_particleindices[idx]] for idx in '0123']
+            sel1_jesup_pu_weight = evaluator['pileup'](sel1_jesup_events.Pileup.nTrueInt)
+            sel1_jesup_muonidsf = evaluator['muonidsf'](abs(sel1_jesup_muons.eta), sel1_jesup_muons.pt)
+            sel1_jesup_muonisosf = evaluator['muonisosf'](abs(sel1_jesup_muons.eta), sel1_jesup_muons.pt)
+            sel1_jesup_muonhltsf = evaluator['muonhltsf'](abs(sel1_jesup_muons.eta), sel1_jesup_muons.pt)
 
-#            sel1_JESUp_jets = [sel1_JESUp_events.Jet[sel1_JESUp_particleindices[idx]] for idx in '0123']
+            sel1_jesup_X = pandas.DataFrame(np.transpose(np.vstack((
+                ak.to_numpy(sel1_jesup_nextrajets),
+                ak.to_numpy(sel1_jesup_nextrabjets),
+                np.zeros(len(sel1_jesup_events)),
+                np.sign(ak.to_numpy(sel1_jesup_muons.charge)+1),
+                ak.to_numpy(sel1_jesup_muons.pt),
+                ak.to_numpy(sel1_jesup_muons.eta),
+                ak.to_numpy(sel1_jesup_muons.phi),
+                ak.to_numpy(sel1_jesup_events.PuppiMET.ptJESUp),
+                ak.to_numpy(sel1_jesup_events.PuppiMET.phiJESUp),
+                ak.to_numpy(sel1_jesup_b_jets[:,0].pt),
+                ak.to_numpy(sel1_jesup_b_jets[:,1].pt),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,0].pt),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,1].pt),
+                ak.to_numpy(sel1_jesup_b_jets[:,0].eta),
+                ak.to_numpy(sel1_jesup_b_jets[:,1].eta),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,0].eta),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,1].eta),
+                ak.to_numpy(sel1_jesup_b_jets[:,0].phi),
+                ak.to_numpy(sel1_jesup_b_jets[:,1].phi),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,0].phi),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,1].phi),
+                ak.to_numpy(sel1_jesup_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_jesup_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel1_jesup_b_jets[:,0]+sel1_jesup_b_jets[:,1]).mass),
+                ak.to_numpy((sel1_jesup_vbf_jets[:,0]+sel1_jesup_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel1_jesup_vbf_jets[:,0].eta - sel1_jesup_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel1_jesup_muons+sel1_jesup_b_jets[:,0]).pt*sel1_jesup_events.PuppiMET.ptJESUp*(1 - np.cos(sel1_jesup_events.PuppiMET.phi - (sel1_jesup_muons+sel1_jesup_b_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel1_jesup_muons+sel1_jesup_b_jets[:,1]).pt*sel1_jesup_events.PuppiMET.ptJESUp*(1 - np.cos(sel1_jesup_events.PuppiMET.phiJESUp - (sel1_jesup_muons+sel1_jesup_b_jets[:,1]).phi))))))),
+                columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
-            sel1_JESUp_muons = sel1_JESUp_events.Muon[sel1_JESUp_particleindices['4']]
+            sel1_jesup_d = xgb.DMatrix(sel1_jesup_X)
 
-            sel1_JESUp_pu_weight = evaluator['pileup'](sel1_JESUp_events.Pileup.nTrueInt)
-            sel1_JESUp_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_JESUp_muons.eta), sel1_JESUp_muons.pt))
-            sel1_JESUp_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_JESUp_muons.eta), sel1_JESUp_muons.pt))
-            sel1_JESUp_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_JESUp_muons.eta), sel1_JESUp_muons.pt))
-
-            sel1_JESUp_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel1_JESUp_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel1_JESUp_particleindices['7'])).data,np.zeros(len(sel1_JESUp_events)),np.sign(ak.to_numpy(ak.firsts(sel1_JESUp_muons).charge).data+1),ak.to_numpy(ak.firsts(sel1_JESUp_muons).pt).data,ak.to_numpy(ak.firsts(sel1_JESUp_muons).eta).data,ak.to_numpy(ak.firsts(sel1_JESUp_muons).phi).data,ak.to_numpy(sel1_JESUp_events.PuppiMET.ptJESUp),ak.to_numpy(sel1_JESUp_events.PuppiMET.phiJESUp),ak.to_numpy(ak.firsts(sel1_JESUp_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_JESUp_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel1_JESUp_jets[0]+sel1_JESUp_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel1_JESUp_jets[2]+sel1_JESUp_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel1_JESUp_jets[2]).eta - ak.firsts(sel1_JESUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_JESUp_muons+sel1_JESUp_jets[0]).pt*sel1_JESUp_events.PuppiMET.ptJESUp*(1 - np.cos(sel1_JESUp_events.PuppiMET.phiJESUp - (sel1_JESUp_muons+sel1_JESUp_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_JESUp_muons+sel1_JESUp_jets[1]).pt*sel1_JESUp_events.PuppiMET.ptJESUp*(1 - np.cos(sel1_JESUp_events.PuppiMET.phiJESUp - (sel1_JESUp_muons+sel1_JESUp_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
-
-            sel1_JESUp_d = xgb.DMatrix(sel1_JESUp_X)
-
-            sel1_JESUp_bdtscore = bst.predict(sel1_JESUp_d)
+            sel1_jesup_bdtscore = bst.predict(sel1_jesup_d)
 
             if dataset == 'ewkwhjj_reweighted':
-                sel1_JESUp_weight = np.sign(sel1_JESUp_events.Generator.weight)*sel1_JESUp_pu_weight*sel1_JESUp_events.L1PreFiringWeight.Nom*sel1_JESUp_muonidsf*sel1_JESUp_muonisosf*sel1_JESUp_muonhltsf*sel1_JESUp_events.LHEReweightingWeight[:,9]
+                sel1_jesup_weight = np.sign(sel1_jesup_events.Generator.weight)*sel1_jesup_pu_weight*sel1_jesup_events.L1PreFiringWeight.Nom*sel1_jesup_muonidsf*sel1_jesup_muonisosf*sel1_jesup_muonhltsf*sel1_jesup_events.LHEReweightingWeight[:,9]
             else:    
-                sel1_JESUp_weight = np.sign(sel1_JESUp_events.Generator.weight)*sel1_JESUp_pu_weight*sel1_JESUp_events.L1PreFiringWeight.Nom*sel1_JESUp_muonidsf*sel1_JESUp_muonisosf*sel1_JESUp_muonhltsf
+                sel1_jesup_weight = np.sign(sel1_jesup_events.Generator.weight)*sel1_jesup_pu_weight*sel1_jesup_events.L1PreFiringWeight.Nom*sel1_jesup_muonidsf*sel1_jesup_muonisosf*sel1_jesup_muonhltsf
 
-            output['sel1_bdtscore_binning1_JESUp'].fill(
+            output['sel1_bdtscore_binning1_jesup'].fill(
                 dataset=dataset,
-                bdtscore=sel1_JESUp_bdtscore,
-                weight=sel1_JESUp_weight
+                bdtscore=sel1_jesup_bdtscore,
+                weight=sel1_jesup_weight
             )
 
-            output['sel3_bdtscore_binning1_JESUp'].fill(
+            output['sel3_bdtscore_binning1_jesup'].fill(
                 dataset=dataset,
-                bdtscore=sel1_JESUp_bdtscore,
-                weight=sel1_JESUp_weight
+                bdtscore=sel1_jesup_bdtscore,
+                weight=sel1_jesup_weight
             )
 
-        if dataset != 'data' and ak.any(basecut_JERUp) and ak.any(cut1_JERUp):
+        if dataset != 'data' and ak.any(basecut_jerup) and ak.any(cut1_jerup):
 
-            sel1_JERUp_particleindices = particleindices_JERUp[cut1_JERUp]
-        
-            sel1_JERUp_events = events_JERUp[cut1_JERUp]
-            
-            sel1_JERUp_corrected_jets = corrected_jets_JERUp[cut1_JERUp]
+            sel1_jerup_events = events_jerup[cut1_jerup]
+            sel1_jerup_b_jets = b_jets_jerup[cut1_jerup]
+            sel1_jerup_vbf_jets = vbf_jets_jerup[cut1_jerup]
+            sel1_jerup_muons = tight_muons_jerup[cut1_jerup][:,0]
+            sel1_jerup_nextrajets = nextrajets_jerup[cut1_jerup]
+            sel1_jerup_nextrabjets = nextrabjets_jerup[cut1_jerup]
 
-            sel1_JERUp_jets = [sel1_JERUp_corrected_jets[sel1_JERUp_particleindices[idx]] for idx in '0123']
+            sel1_jerup_pu_weight = evaluator['pileup'](sel1_jerup_events.Pileup.nTrueInt)
+            sel1_jerup_muonidsf = evaluator['muonidsf'](abs(sel1_jerup_muons.eta), sel1_jerup_muons.pt)
+            sel1_jerup_muonisosf = evaluator['muonisosf'](abs(sel1_jerup_muons.eta), sel1_jerup_muons.pt)
+            sel1_jerup_muonhltsf = evaluator['muonhltsf'](abs(sel1_jerup_muons.eta), sel1_jerup_muons.pt)
 
-#            sel1_JERUp_jets = [sel1_JERUp_events.Jet[sel1_JERUp_particleindices[idx]] for idx in '0123']
+            sel1_jerup_X = pandas.DataFrame(np.transpose(np.vstack((
+                ak.to_numpy(sel1_jerup_nextrajets),
+                ak.to_numpy(sel1_jerup_nextrabjets),
+                np.zeros(len(sel1_jerup_events)),
+                np.sign(ak.to_numpy(sel1_jerup_muons.charge)+1),
+                ak.to_numpy(sel1_jerup_muons.pt),
+                ak.to_numpy(sel1_jerup_muons.eta),
+                ak.to_numpy(sel1_jerup_muons.phi),
+                ak.to_numpy(sel1_jerup_events.PuppiMET.ptJERUp),
+                ak.to_numpy(sel1_jerup_events.PuppiMET.phiJERUp),
+                ak.to_numpy(sel1_jerup_b_jets[:,0].pt),
+                ak.to_numpy(sel1_jerup_b_jets[:,1].pt),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,0].pt),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,1].pt),
+                ak.to_numpy(sel1_jerup_b_jets[:,0].eta),
+                ak.to_numpy(sel1_jerup_b_jets[:,1].eta),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,0].eta),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,1].eta),
+                ak.to_numpy(sel1_jerup_b_jets[:,0].phi),
+                ak.to_numpy(sel1_jerup_b_jets[:,1].phi),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,0].phi),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,1].phi),
+                ak.to_numpy(sel1_jerup_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_jerup_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel1_jerup_b_jets[:,0]+sel1_jerup_b_jets[:,1]).mass),
+                ak.to_numpy((sel1_jerup_vbf_jets[:,0]+sel1_jerup_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel1_jerup_vbf_jets[:,0].eta - sel1_jerup_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel1_jerup_muons+sel1_jerup_b_jets[:,0]).pt*sel1_jerup_events.PuppiMET.ptJERUp*(1 - np.cos(sel1_jerup_events.PuppiMET.phi - (sel1_jerup_muons+sel1_jerup_b_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel1_jerup_muons+sel1_jerup_b_jets[:,1]).pt*sel1_jerup_events.PuppiMET.ptJERUp*(1 - np.cos(sel1_jerup_events.PuppiMET.phiJERUp - (sel1_jerup_muons+sel1_jerup_b_jets[:,1]).phi))))))),
+                columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
-            sel1_JERUp_muons = sel1_JERUp_events.Muon[sel1_JERUp_particleindices['4']]
+            sel1_jerup_d = xgb.DMatrix(sel1_jerup_X)
 
-            sel1_JERUp_pu_weight = evaluator['pileup'](sel1_JERUp_events.Pileup.nTrueInt)
-            sel1_JERUp_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_JERUp_muons.eta), sel1_JERUp_muons.pt))
-            sel1_JERUp_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_JERUp_muons.eta), sel1_JERUp_muons.pt))
-            sel1_JERUp_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_JERUp_muons.eta), sel1_JERUp_muons.pt))
-
-            sel1_JERUp_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel1_JERUp_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel1_JERUp_particleindices['7'])).data,np.zeros(len(sel1_JERUp_events)),np.sign(ak.to_numpy(ak.firsts(sel1_JERUp_muons).charge).data+1),ak.to_numpy(ak.firsts(sel1_JERUp_muons).pt).data,ak.to_numpy(ak.firsts(sel1_JERUp_muons).eta).data,ak.to_numpy(ak.firsts(sel1_JERUp_muons).phi).data,ak.to_numpy(sel1_JERUp_events.PuppiMET.ptJERUp),ak.to_numpy(sel1_JERUp_events.PuppiMET.phiJERUp),ak.to_numpy(ak.firsts(sel1_JERUp_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_JERUp_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel1_JERUp_jets[0]+sel1_JERUp_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel1_JERUp_jets[2]+sel1_JERUp_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel1_JERUp_jets[2]).eta - ak.firsts(sel1_JERUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_JERUp_muons+sel1_JERUp_jets[0]).pt*sel1_JERUp_events.PuppiMET.ptJERUp*(1 - np.cos(sel1_JERUp_events.PuppiMET.phiJERUp - (sel1_JERUp_muons+sel1_JERUp_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_JERUp_muons+sel1_JERUp_jets[1]).pt*sel1_JERUp_events.PuppiMET.ptJERUp*(1 - np.cos(sel1_JERUp_events.PuppiMET.phiJERUp - (sel1_JERUp_muons+sel1_JERUp_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
-
-            sel1_JERUp_d = xgb.DMatrix(sel1_JERUp_X)
-
-            sel1_JERUp_bdtscore = bst.predict(sel1_JERUp_d)
+            sel1_jerup_bdtscore = bst.predict(sel1_jerup_d)
 
             if dataset == 'ewkwhjj_reweighted':
-                sel1_JERUp_weight = np.sign(sel1_JERUp_events.Generator.weight)*sel1_JERUp_pu_weight*sel1_JERUp_events.L1PreFiringWeight.Nom*sel1_JERUp_muonidsf*sel1_JERUp_muonisosf*sel1_JERUp_muonhltsf*sel1_JERUp_events.LHEReweightingWeight[:,9]
+                sel1_jerup_weight = np.sign(sel1_jerup_events.Generator.weight)*sel1_jerup_pu_weight*sel1_jerup_events.L1PreFiringWeight.Nom*sel1_jerup_muonidsf*sel1_jerup_muonisosf*sel1_jerup_muonhltsf*sel1_jerup_events.LHEReweightingWeight[:,9]
             else:
-                sel1_JERUp_weight = np.sign(sel1_JERUp_events.Generator.weight)*sel1_JERUp_pu_weight*sel1_JERUp_events.L1PreFiringWeight.Nom*sel1_JERUp_muonidsf*sel1_JERUp_muonisosf*sel1_JERUp_muonhltsf
+                sel1_jerup_weight = np.sign(sel1_jerup_events.Generator.weight)*sel1_jerup_pu_weight*sel1_jerup_events.L1PreFiringWeight.Nom*sel1_jerup_muonidsf*sel1_jerup_muonisosf*sel1_jerup_muonhltsf
 
-            output['sel1_bdtscore_binning1_JERUp'].fill(
+            output['sel1_bdtscore_binning1_jerup'].fill(
                 dataset=dataset,
-                bdtscore=sel1_JERUp_bdtscore,
-                weight=sel1_JERUp_weight
+                bdtscore=sel1_jerup_bdtscore,
+                weight=sel1_jerup_weight
             )
 
-            output['sel3_bdtscore_binning1_JERUp'].fill(
+            output['sel3_bdtscore_binning1_jerup'].fill(
                 dataset=dataset,
-                bdtscore=sel1_JERUp_bdtscore,
-                weight=sel1_JERUp_weight
+                bdtscore=sel1_jerup_bdtscore,
+                weight=sel1_jerup_weight
             )
 
         if ak.any(basecut) and ak.any(cut1):
 
-            sel1_particleindices = particleindices[cut1]
-        
             sel1_events = events[cut1]
             
-            sel1_jets = [sel1_events.Jet[sel1_particleindices[idx]] for idx in '0123']
+            sel1_b_jets = b_jets[cut1]
 
-            sel1_muons = sel1_events.Muon[sel1_particleindices['4']]
+            sel1_vbf_jets = vbf_jets[cut1]
 
-            sel1_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel1_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel1_particleindices['7'])).data,np.zeros(len(sel1_events)),np.sign(ak.to_numpy(ak.firsts(sel1_muons).charge).data+1),ak.to_numpy(ak.firsts(sel1_muons).pt).data,ak.to_numpy(ak.firsts(sel1_muons).eta).data,ak.to_numpy(ak.firsts(sel1_muons).phi).data,ak.to_numpy(sel1_events.PuppiMET.pt),ak.to_numpy(sel1_events.PuppiMET.phi),ak.to_numpy(ak.firsts(sel1_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel1_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel1_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel1_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel1_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel1_jets[0]+sel1_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel1_jets[2]+sel1_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel1_jets[2]).eta - ak.firsts(sel1_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_muons+sel1_jets[0]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel1_muons+sel1_jets[1]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
+            sel1_muons = tight_muons[cut1][:,0]
+
+            sel1_nextrajets = nextrajets[cut1]
+
+            sel1_nextrabjets = nextrabjets[cut1]
+
+            sel1_X = pandas.DataFrame(np.transpose(np.vstack((
+                ak.to_numpy(sel1_nextrajets),
+                ak.to_numpy(sel1_nextrabjets),
+                np.zeros(len(sel1_events)),
+                np.sign(ak.to_numpy(sel1_muons.charge)+1),
+                ak.to_numpy(sel1_muons.pt),
+                ak.to_numpy(sel1_muons.eta),
+                ak.to_numpy(sel1_muons.phi),
+                ak.to_numpy(sel1_events.PuppiMET.pt),
+                ak.to_numpy(sel1_events.PuppiMET.phi),
+                ak.to_numpy(sel1_b_jets[:,0].pt),
+                ak.to_numpy(sel1_b_jets[:,1].pt),
+                ak.to_numpy(sel1_vbf_jets[:,0].pt),
+                ak.to_numpy(sel1_vbf_jets[:,1].pt),
+                ak.to_numpy(sel1_b_jets[:,0].eta),
+                ak.to_numpy(sel1_b_jets[:,1].eta),
+                ak.to_numpy(sel1_vbf_jets[:,0].eta),
+                ak.to_numpy(sel1_vbf_jets[:,1].eta),
+                ak.to_numpy(sel1_b_jets[:,0].phi),
+                ak.to_numpy(sel1_b_jets[:,1].phi),
+                ak.to_numpy(sel1_vbf_jets[:,0].phi),
+                ak.to_numpy(sel1_vbf_jets[:,1].phi),
+                ak.to_numpy(sel1_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel1_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel1_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel1_b_jets[:,0]+sel1_b_jets[:,1]).mass),
+                ak.to_numpy((sel1_vbf_jets[:,0]+sel1_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel1_vbf_jets[:,0].eta - sel1_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel1_muons+sel1_b_jets[:,0]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_b_jets[:,0]).phi)))),ak.to_numpy(np.sqrt(2*(sel1_muons+sel1_b_jets[:,1]).pt*sel1_events.PuppiMET.pt*(1 - np.cos(sel1_events.PuppiMET.phi - (sel1_muons+sel1_b_jets[:,1]).phi))))))),
+                columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
             sel1_d = xgb.DMatrix(sel1_X)
 
@@ -1405,43 +1221,43 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
                 sel1_puUp_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
                 sel1_puDown_weight = evaluator['pileup_down'](sel1_events.Pileup.nTrueInt)
-                sel1_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonidsfUp = ak.firsts(evaluator['muonidsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonidsf
-                sel1_muonisosfUp = ak.firsts(evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonisosf
-                sel1_muonhltsfUp = ak.firsts(evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonhltsf
+                sel1_muonidsf = evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt)
+                sel1_muonisosf = evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt)
+                sel1_muonhltsf = evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt)
+                sel1_muonidsfUp = evaluator['muonidsfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonidsf
+                sel1_muonisosfUp = evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonisosf
+                sel1_muonhltsfUp = evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonhltsf
 
                 sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
                 sel1_weight_reweighted = []
                 for i in range(args.nreweights):
                     sel1_weight_reweighted.append(np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,i])
 
-                sel1_weight_pileupUp = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_pileupDown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_prefireUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_muonidsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_muonisosfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_muonhltsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_pileupup = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_pileupdown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_prefireup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_muonidsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_muonisosfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_muonhltsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp*sel1_events.LHEReweightingWeight[:,9]
             else:
                 sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
-                sel1_puUp_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
-                sel1_puDown_weight = evaluator['pileup_down'](sel1_events.Pileup.nTrueInt)
-                sel1_muonidsf = ak.firsts(evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonisosf = ak.firsts(evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonhltsf = ak.firsts(evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt))
-                sel1_muonidsfUp = ak.firsts(evaluator['muonidsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonidsf
-                sel1_muonisosfUp = ak.firsts(evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonisosf
-                sel1_muonhltsfUp = ak.firsts(evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt))+sel1_muonhltsf
+                sel1_puup_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
+                sel1_pudown_weight = evaluator['pileup_down'](sel1_events.Pileup.nTrueInt)
+                sel1_muonidsf = evaluator['muonidsf'](abs(sel1_muons.eta), sel1_muons.pt)
+                sel1_muonisosf = evaluator['muonisosf'](abs(sel1_muons.eta), sel1_muons.pt)
+                sel1_muonhltsf = evaluator['muonhltsf'](abs(sel1_muons.eta), sel1_muons.pt)
+                sel1_muonidsfUp = evaluator['muonidsfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonidsf
+                sel1_muonisosfUp = evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonisosf
+                sel1_muonhltsfUp = evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonhltsf
 
                 sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
 
-                sel1_weight_pileupUp = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_pileupDown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_prefireUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_muonidsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_muonisosfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf
-                sel1_weight_muonhltsfUp = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp
+                sel1_weight_pileupup = np.sign(sel1_events.Generator.weight)*sel1_puup_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
+                sel1_weight_pileupdown = np.sign(sel1_events.Generator.weight)*sel1_pudown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
+                sel1_weight_prefireup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
+                sel1_weight_muonidsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf
+                sel1_weight_muonisosfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf
+                sel1_weight_muonhltsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp
 
                 
             output['sel1_bdtscore_binning1'].fill(
@@ -1459,40 +1275,40 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     )
 
             if dataset != 'data':
-                output['sel1_bdtscore_binning1_pileupUp'].fill(
+                output['sel1_bdtscore_binning1_pileupup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_pileupUp
+                    weight=sel1_weight_pileupup
                 )
 
-                output['sel1_bdtscore_binning1_pileupDown'].fill(
+                output['sel1_bdtscore_binning1_pileupdown'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_pileupDown
+                    weight=sel1_weight_pileupdown
                 )
 
-                output['sel1_bdtscore_binning1_prefireUp'].fill(
+                output['sel1_bdtscore_binning1_prefireup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_prefireUp
+                    weight=sel1_weight_prefireup
                 )
 
-                output['sel1_bdtscore_binning1_muonidsfUp'].fill(
+                output['sel1_bdtscore_binning1_muonidsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_muonidsfUp
+                    weight=sel1_weight_muonidsfup
                 )
                 
-                output['sel1_bdtscore_binning1_muonisosfUp'].fill(
+                output['sel1_bdtscore_binning1_muonisosfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_muonisosfUp
+                    weight=sel1_weight_muonisosfup
                 )
 
-                output['sel1_bdtscore_binning1_muonhltsfUp'].fill(
+                output['sel1_bdtscore_binning1_muonhltsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_muonhltsfUp
+                    weight=sel1_weight_muonhltsfup
                 )
 
             output['sel1_bdtscore_binning2'].fill(
@@ -1509,37 +1325,37 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel1_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel1_jets[0]+sel1_jets[1]).mass),
+                higgsdijetmass=(sel1_b_jets[:,0]+sel1_b_jets[:,1]).mass,
                 weight=sel1_weight
             )
 
             output['sel1_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel1_jets[0]+sel1_jets[1]).pt),
+                higgsdijetpt=(sel1_b_jets[:,0]+sel1_b_jets[:,1]).pt,
                 weight=sel1_weight
             )
         
-            output['sel1_vbsdijetmass_binning1'].fill(
+            output['sel1_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel1_jets[2]+sel1_jets[3]).mass),
+                vbfdijetmass=(sel1_vbf_jets[:,0]+sel1_vbf_jets[:,1]).mass,
                 weight=sel1_weight
             )
 
-            output['sel1_vbsdijetmass_binning2'].fill(
+            output['sel1_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel1_jets[2]+sel1_jets[3]).mass),
+                vbfdijetmass=(sel1_vbf_jets[:,0]+sel1_vbf_jets[:,1]).mass,
                 weight=sel1_weight
             )
 
-            output['sel1_vbsdijetabsdeta_binning1'].fill(
+            output['sel1_vbfdijetabsdeta_binning1'].fill(
                 dataset=dataset,
-                vbsdijetabsdeta=ak.firsts(sel1_jets[2]).eta - ak.firsts(sel1_jets[3]).eta,
+                vbfdijetabsdeta=abs(sel1_vbf_jets[:,0].eta - sel1_vbf_jets[:,1].eta),
                 weight=sel1_weight
             )
 
             output['sel1_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel1_muons.pt),
+                leptonpt=sel1_muons.pt,
                 weight=sel1_weight
             )
 
@@ -1565,52 +1381,52 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             if dataset != 'data':
 
-                output['sel3_bdtscore_binning1_pileupUp'].fill(
+                output['sel3_bdtscore_binning1_pileupup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_pileupUp
+                    weight=sel1_weight_pileupup
                 )
 
-                output['sel3_bdtscore_binning1_pileupDown'].fill(
+                output['sel3_bdtscore_binning1_pileupdown'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_pileupDown
+                    weight=sel1_weight_pileupdown
                 )
 
-                output['sel3_bdtscore_binning1_prefireUp'].fill(
+                output['sel3_bdtscore_binning1_prefireup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_prefireUp
+                    weight=sel1_weight_prefireup
                 )
                 
-                output['sel3_bdtscore_binning1_electronidsfUp'].fill(
+                output['sel3_bdtscore_binning1_electronidsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
                     weight=sel1_weight
                 )
 
-                output['sel3_bdtscore_binning1_electronrecosfUp'].fill(
+                output['sel3_bdtscore_binning1_electronrecosfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
                     weight=sel1_weight
                 )
                 
-                output['sel3_bdtscore_binning1_muonidsfUp'].fill(
+                output['sel3_bdtscore_binning1_muonidsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_muonidsfUp
+                    weight=sel1_weight_muonidsfup
                 )
                 
-                output['sel3_bdtscore_binning1_muonisosfUp'].fill(
+                output['sel3_bdtscore_binning1_muonisosfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_muonisosfUp
+                    weight=sel1_weight_muonisosfup
                 )
                 
-                output['sel3_bdtscore_binning1_muonhltsfUp'].fill(
+                output['sel3_bdtscore_binning1_muonhltsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel1_bdtscore,
-                    weight=sel1_weight_muonhltsfUp
+                    weight=sel1_weight_muonhltsfup
                 )
 
             output['sel3_bdtscore_binning2'].fill(
@@ -1627,37 +1443,37 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel3_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel1_jets[0]+sel1_jets[1]).mass),
+                higgsdijetmass=(sel1_b_jets[:,0]+sel1_b_jets[:,1]).mass,
                 weight=sel1_weight
             )
 
             output['sel3_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel1_jets[0]+sel1_jets[1]).pt),
+                higgsdijetpt=(sel1_b_jets[:,0]+sel1_b_jets[:,1]).mass,
                 weight=sel1_weight
             )
         
-            output['sel3_vbsdijetmass_binning1'].fill(
+            output['sel3_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel1_jets[2]+sel1_jets[3]).mass),
+                vbfdijetmass=(sel1_vbf_jets[:,0]+sel1_vbf_jets[:,1]).mass,
                 weight=sel1_weight
             )
 
-            output['sel3_vbsdijetmass_binning2'].fill(
+            output['sel3_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel1_jets[2]+sel1_jets[3]).mass),
+                vbfdijetmass=(sel1_vbf_jets[:,0]+sel1_vbf_jets[:,1]).mass,
                 weight=sel1_weight
             )
 
-            output['sel3_vbsdijetabsdeta_binning1'].fill(
+            output['sel3_vbfdijetabsdeta_binning1'].fill(
                 dataset=dataset,
-                vbsdijetabsdeta=ak.firsts(sel1_jets[2]).eta - ak.firsts(sel1_jets[3]).eta,
+                vbfdijetabsdeta=abs(sel1_vbf_jets[:,0].eta - sel1_vbf_jets[:,1].eta),
                 weight=sel1_weight
             )
 
             output['sel3_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel1_muons.pt),
+                leptonpt=sel1_muons.pt,
                 weight=sel1_weight
             )
 
@@ -1667,88 +1483,178 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel1_weight
             )
 
-        if dataset != 'data' and ak.any(basecut_JESUp) and ak.any(cut2_JESUp):
+        if dataset != 'data' and ak.any(basecut_jesup) and ak.any(cut2_jesup):
 
-            sel2_JESUp_particleindices = particleindices_JESUp[cut2_JESUp]
-        
-            sel2_JESUp_events = events_JESUp[cut2_JESUp]
-            
-            sel2_JESUp_jets = [sel2_JESUp_events.Jet[sel2_JESUp_particleindices[idx]] for idx in '0123']
+            sel2_jesup_events = events_jesup[cut2_jesup]
+            sel2_jesup_b_jets = b_jets_jesup[cut2_jesup]
+            sel2_jesup_vbf_jets = vbf_jets_jesup[cut2_jesup]
+            sel2_jesup_electrons = tight_electrons_jesup[cut2_jesup][:,0]
+            sel2_jesup_nextrajets = nextrajets_jesup[cut2_jesup]
+            sel2_jesup_nextrabjets = nextrabjets_jesup[cut2_jesup]
 
-            sel2_JESUp_electrons = sel2_JESUp_events.Electron[sel2_JESUp_particleindices['4']]
+            sel2_jesup_pu_weight = evaluator['pileup'](sel2_jesup_events.Pileup.nTrueInt)
+            sel2_jesup_electronidsf = evaluator['electronidsf'](sel2_jesup_electrons.eta, sel2_jesup_electrons.pt)
+            sel2_jesup_electronrecosf = evaluator['electronrecosf'](sel2_jesup_electrons.eta, sel2_jesup_electrons.pt)
 
-            sel2_JESUp_pu_weight = evaluator['pileup'](sel2_JESUp_events.Pileup.nTrueInt)
-            sel2_JESUp_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_JESUp_electrons.eta, sel2_JESUp_electrons.pt))
-            sel2_JESUp_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_JESUp_electrons.eta, sel2_JESUp_electrons.pt))
+            sel2_jesup_X = pandas.DataFrame(np.transpose(np.vstack((
+                ak.to_numpy(sel2_jesup_nextrajets),
+                ak.to_numpy(sel2_jesup_nextrabjets),
+                np.ones(len(sel2_jesup_events)),
+                np.sign(ak.to_numpy(sel2_jesup_electrons.charge)+1),
+                ak.to_numpy(sel2_jesup_electrons.pt),
+                ak.to_numpy(sel2_jesup_electrons.eta),
+                ak.to_numpy(sel2_jesup_electrons.phi),
+                ak.to_numpy(sel2_jesup_events.PuppiMET.ptJESUp),
+                ak.to_numpy(sel2_jesup_events.PuppiMET.phiJESUp),
+                ak.to_numpy(sel2_jesup_b_jets[:,0].pt),
+                ak.to_numpy(sel2_jesup_b_jets[:,1].pt),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,0].pt),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,1].pt),
+                ak.to_numpy(sel2_jesup_b_jets[:,0].eta),
+                ak.to_numpy(sel2_jesup_b_jets[:,1].eta),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,0].eta),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,1].eta),
+                ak.to_numpy(sel2_jesup_b_jets[:,0].phi),
+                ak.to_numpy(sel2_jesup_b_jets[:,1].phi),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,0].phi),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,1].phi),
+                ak.to_numpy(sel2_jesup_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_jesup_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel2_jesup_b_jets[:,0]+sel2_jesup_b_jets[:,1]).mass),
+                ak.to_numpy((sel2_jesup_vbf_jets[:,0]+sel2_jesup_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel2_jesup_vbf_jets[:,0].eta - sel2_jesup_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel2_jesup_electrons+sel2_jesup_b_jets[:,0]).pt*sel2_jesup_events.PuppiMET.ptJESUp*(1 - np.cos(sel2_jesup_events.PuppiMET.phi - (sel2_jesup_electrons+sel2_jesup_b_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel2_jesup_electrons+sel2_jesup_b_jets[:,1]).pt*sel2_jesup_events.PuppiMET.ptJESUp*(1 - np.cos(sel2_jesup_events.PuppiMET.phiJESUp - (sel2_jesup_electrons+sel2_jesup_b_jets[:,1]).phi))))))),
+                columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
-            sel2_JESUp_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel2_JESUp_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel2_JESUp_particleindices['7'])).data,np.zeros(len(sel2_JESUp_events)),np.sign(ak.to_numpy(ak.firsts(sel2_JESUp_electrons).charge).data+1),ak.to_numpy(ak.firsts(sel2_JESUp_electrons).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_electrons).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_electrons).phi).data,ak.to_numpy(sel2_JESUp_events.PuppiMET.ptJESUp),ak.to_numpy(sel2_JESUp_events.PuppiMET.phiJESUp),ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JESUp_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel2_JESUp_jets[0]+sel2_JESUp_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel2_JESUp_jets[2]+sel2_JESUp_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel2_JESUp_jets[2]).eta - ak.firsts(sel2_JESUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JESUp_electrons+sel2_JESUp_jets[0]).pt*sel2_JESUp_events.PuppiMET.ptJESUp*(1 - np.cos(sel2_JESUp_events.PuppiMET.phiJESUp - (sel2_JESUp_electrons+sel2_JESUp_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JESUp_electrons+sel2_JESUp_jets[1]).pt*sel2_JESUp_events.PuppiMET.ptJESUp*(1 - np.cos(sel2_JESUp_events.PuppiMET.phiJESUp - (sel2_JESUp_electrons+sel2_JESUp_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
+            sel2_jesup_d = xgb.DMatrix(sel2_jesup_X)
 
-            sel2_JESUp_d = xgb.DMatrix(sel2_JESUp_X)
+            sel2_jesup_bdtscore = bst.predict(sel2_jesup_d)
 
-            sel2_JESUp_bdtscore = bst.predict(sel2_JESUp_d)
+            sel2_jesup_weight = np.sign(sel2_jesup_events.Generator.weight)*sel2_jesup_pu_weight*sel2_jesup_events.L1PreFiringWeight.Nom*sel2_jesup_electronidsf*sel2_jesup_electronrecosf
 
-            sel2_JESUp_weight = np.sign(sel2_JESUp_events.Generator.weight)*sel2_JESUp_pu_weight*sel2_JESUp_events.L1PreFiringWeight.Nom*sel2_JESUp_electronidsf*sel2_JESUp_electronrecosf
-
-            output['sel2_bdtscore_binning1_JESUp'].fill(
+            output['sel2_bdtscore_binning1_jesup'].fill(
                 dataset=dataset,
-                bdtscore=sel2_JESUp_bdtscore,
-                weight=sel2_JESUp_weight
+                bdtscore=sel2_jesup_bdtscore,
+                weight=sel2_jesup_weight
             )
 
-            output['sel3_bdtscore_binning1_JESUp'].fill(
+            output['sel3_bdtscore_binning1_jesup'].fill(
                 dataset=dataset,
-                bdtscore=sel2_JESUp_bdtscore,
-                weight=sel2_JESUp_weight
+                bdtscore=sel2_jesup_bdtscore,
+                weight=sel2_jesup_weight
             )
 
-        if dataset != 'data' and ak.any(basecut_JERUp) and ak.any(cut2_JERUp):
+        if dataset != 'data' and ak.any(basecut_jerup) and ak.any(cut2_jerup):
 
-            sel2_JERUp_particleindices = particleindices_JERUp[cut2_JERUp]
-        
-            sel2_JERUp_events = events_JERUp[cut2_JERUp]
-            
-            sel2_JERUp_jets = [sel2_JERUp_events.Jet[sel2_JERUp_particleindices[idx]] for idx in '0123']
+            sel2_jerup_events = events_jerup[cut2_jerup]
+            sel2_jerup_b_jets = b_jets_jerup[cut2_jerup]
+            sel2_jerup_vbf_jets = vbf_jets_jerup[cut2_jerup]
+            sel2_jerup_electrons = tight_electrons_jerup[cut2_jerup][:,0]
+            sel2_jerup_nextrajets = nextrajets_jerup[cut2_jerup]
+            sel2_jerup_nextrabjets = nextrabjets_jerup[cut2_jerup]
 
-            sel2_JERUp_electrons = sel2_JERUp_events.Electron[sel2_JERUp_particleindices['4']]
+            sel2_jerup_pu_weight = evaluator['pileup'](sel2_jerup_events.Pileup.nTrueInt)
+            sel2_jerup_electronidsf = evaluator['electronidsf'](sel2_jerup_electrons.eta, sel2_jerup_electrons.pt)
+            sel2_jerup_electronrecosf = evaluator['electronrecosf'](sel2_jerup_electrons.eta, sel2_jerup_electrons.pt)
 
-            sel2_JERUp_pu_weight = evaluator['pileup'](sel2_JERUp_events.Pileup.nTrueInt)
-            sel2_JERUp_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_JERUp_electrons.eta, sel2_JERUp_electrons.pt))
-            sel2_JERUp_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_JERUp_electrons.eta, sel2_JERUp_electrons.pt))
+            sel2_jerup_X = pandas.DataFrame(np.transpose(np.vstack((
+                ak.to_numpy(sel2_jerup_nextrajets),
+                ak.to_numpy(sel2_jerup_nextrabjets),
+                np.ones(len(sel2_jerup_events)),
+                np.sign(ak.to_numpy(sel2_jerup_electrons.charge)+1),
+                ak.to_numpy(sel2_jerup_electrons.pt),
+                ak.to_numpy(sel2_jerup_electrons.eta),
+                ak.to_numpy(sel2_jerup_electrons.phi),
+                ak.to_numpy(sel2_jerup_events.PuppiMET.ptJERUp),
+                ak.to_numpy(sel2_jerup_events.PuppiMET.phiJERUp),
+                ak.to_numpy(sel2_jerup_b_jets[:,0].pt),
+                ak.to_numpy(sel2_jerup_b_jets[:,1].pt),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,0].pt),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,1].pt),
+                ak.to_numpy(sel2_jerup_b_jets[:,0].eta),
+                ak.to_numpy(sel2_jerup_b_jets[:,1].eta),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,0].eta),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,1].eta),
+                ak.to_numpy(sel2_jerup_b_jets[:,0].phi),
+                ak.to_numpy(sel2_jerup_b_jets[:,1].phi),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,0].phi),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,1].phi),
+                ak.to_numpy(sel2_jerup_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_jerup_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel2_jerup_b_jets[:,0]+sel2_jerup_b_jets[:,1]).mass),
+                ak.to_numpy((sel2_jerup_vbf_jets[:,0]+sel2_jerup_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel2_jerup_vbf_jets[:,0].eta - sel2_jerup_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel2_jerup_electrons+sel2_jerup_b_jets[:,0]).pt*sel2_jerup_events.PuppiMET.ptJERUp*(1 - np.cos(sel2_jerup_events.PuppiMET.phi - (sel2_jerup_electrons+sel2_jerup_b_jets[:,0]).phi)))),
+                ak.to_numpy(np.sqrt(2*(sel2_jerup_electrons+sel2_jerup_b_jets[:,1]).pt*sel2_jerup_events.PuppiMET.ptJERUp*(1 - np.cos(sel2_jerup_events.PuppiMET.phiJERUp - (sel2_jerup_electrons+sel2_jerup_b_jets[:,1]).phi))))))),
+                columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
-            sel2_JERUp_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel2_JERUp_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel2_JERUp_particleindices['7'])).data,np.zeros(len(sel2_JERUp_events)),np.sign(ak.to_numpy(ak.firsts(sel2_JERUp_electrons).charge).data+1),ak.to_numpy(ak.firsts(sel2_JERUp_electrons).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_electrons).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_electrons).phi).data,ak.to_numpy(sel2_JERUp_events.PuppiMET.ptJERUp),ak.to_numpy(sel2_JERUp_events.PuppiMET.phiJERUp),ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_JERUp_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel2_JERUp_jets[0]+sel2_JERUp_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel2_JERUp_jets[2]+sel2_JERUp_jets[3]).mass)).data, ak.to_numpy(ak.firsts(sel2_JERUp_jets[2]).eta - ak.firsts(sel2_JERUp_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JERUp_electrons+sel2_JERUp_jets[0]).pt*sel2_JERUp_events.PuppiMET.ptJERUp*(1 - np.cos(sel2_JERUp_events.PuppiMET.phiJERUp - (sel2_JERUp_electrons+sel2_JERUp_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_JERUp_electrons+sel2_JERUp_jets[1]).pt*sel2_JERUp_events.PuppiMET.ptJERUp*(1 - np.cos(sel2_JERUp_events.PuppiMET.phiJERUp - (sel2_JERUp_electrons+sel2_JERUp_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
+            sel2_jerup_d = xgb.DMatrix(sel2_jerup_X)
 
-            sel2_JERUp_d = xgb.DMatrix(sel2_JERUp_X)
+            sel2_jerup_bdtscore = bst.predict(sel2_jerup_d)
 
-            sel2_JERUp_bdtscore = bst.predict(sel2_JERUp_d)
+            sel2_jerup_weight = np.sign(sel2_jerup_events.Generator.weight)*sel2_jerup_pu_weight*sel2_jerup_events.L1PreFiringWeight.Nom*sel2_jerup_electronidsf*sel2_jerup_electronrecosf
 
-            sel2_JERUp_weight = np.sign(sel2_JERUp_events.Generator.weight)*sel2_JERUp_pu_weight*sel2_JERUp_events.L1PreFiringWeight.Nom*sel2_JERUp_electronidsf*sel2_JERUp_electronrecosf
-
-            output['sel2_bdtscore_binning1_JERUp'].fill(
+            output['sel2_bdtscore_binning1_jerup'].fill(
                 dataset=dataset,
-                bdtscore=sel2_JERUp_bdtscore,
-                weight=sel2_JERUp_weight
+                bdtscore=sel2_jerup_bdtscore,
+                weight=sel2_jerup_weight
             )
 
-            output['sel3_bdtscore_binning1_JERUp'].fill(
+            output['sel3_bdtscore_binning1_jerup'].fill(
                 dataset=dataset,
-                bdtscore=sel2_JERUp_bdtscore,
-                weight=sel2_JERUp_weight
+                bdtscore=sel2_jerup_bdtscore,
+                weight=sel2_jerup_weight
             )
 
         if ak.any(basecut) and ak.any(cut2):
                 
-            sel2_particleindices = particleindices[cut2]
-        
             sel2_events = events[cut2]
-            
-            sel2_jets = [sel2_events.Jet[sel2_particleindices[idx]] for idx in '0123']
-            sel2_electrons = sel2_events.Electron[sel2_particleindices['4']]
+            sel2_b_jets = b_jets[cut2]
+            sel2_vbf_jets = vbf_jets[cut2]
+            sel2_electrons = tight_electrons[cut2][:,0]
+            sel2_nextrajets = nextrajets[cut2]
+            sel2_nextrabjets = nextrabjets[cut2]
 
-            sel2_X = pandas.DataFrame(np.transpose(np.vstack((ak.to_numpy(ak.firsts(sel2_particleindices['6'])).data,ak.to_numpy(ak.firsts(sel2_particleindices['7'])).data,np.ones(len(sel2_events)),np.sign(ak.to_numpy(ak.firsts(sel2_electrons).charge).data+1),ak.to_numpy(ak.firsts(sel2_electrons).pt).data,ak.to_numpy(ak.firsts(sel2_electrons).eta).data,ak.to_numpy(ak.firsts(sel2_electrons).phi).data,ak.to_numpy(sel2_events.PuppiMET.pt),ak.to_numpy(sel2_events.PuppiMET.phi),ak.to_numpy(ak.firsts(sel2_jets[0]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[1]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[2]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[3]).pt).data,ak.to_numpy(ak.firsts(sel2_jets[0]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[1]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[2]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[3]).eta).data,ak.to_numpy(ak.firsts(sel2_jets[0]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[1]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[2]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[3]).phi).data,ak.to_numpy(ak.firsts(sel2_jets[0]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_jets[1]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_jets[2]).btagDeepB).data,ak.to_numpy(ak.firsts(sel2_jets[3]).btagDeepB).data,ak.to_numpy(ak.firsts((sel2_jets[0]+sel2_jets[1]).mass)).data,ak.to_numpy(ak.firsts((sel2_jets[2]+sel2_jets[3]).mass)).data,ak.to_numpy(ak.firsts(sel2_jets[2]).eta - ak.firsts(sel2_jets[3]).eta).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_electrons+sel2_jets[0]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_jets[0]).phi))))).data,ak.to_numpy(ak.firsts(np.sqrt(2*(sel2_electrons+sel2_jets[1]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_jets[1]).phi))))).data))),columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbsjet1pt','vbsjet2pt','higgsjet1eta','higgsjet2eta','vbsjet1eta','vbsjet2eta','higgsjet1phi','higgsjet2phi','vbsjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbsjet1btag','vbsjet2btag','higgsdijetmass','vbsdijetmass','vbsdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
+            sel2_X = pandas.DataFrame(np.transpose(np.vstack((
+                ak.to_numpy(sel2_nextrajets),
+                ak.to_numpy(sel2_nextrabjets),
+                np.ones(len(sel2_events)),
+                np.sign(ak.to_numpy(sel2_electrons.charge)+1),
+                ak.to_numpy(sel2_electrons.pt),
+                ak.to_numpy(sel2_electrons.eta),
+                ak.to_numpy(sel2_electrons.phi),
+                ak.to_numpy(sel2_events.PuppiMET.pt),
+                ak.to_numpy(sel2_events.PuppiMET.phi),
+                ak.to_numpy(sel2_b_jets[:,0].pt),
+                ak.to_numpy(sel2_b_jets[:,1].pt),
+                ak.to_numpy(sel2_vbf_jets[:,0].pt),
+                ak.to_numpy(sel2_vbf_jets[:,1].pt),
+                ak.to_numpy(sel2_b_jets[:,0].eta),
+                ak.to_numpy(sel2_b_jets[:,1].eta),
+                ak.to_numpy(sel2_vbf_jets[:,0].eta),
+                ak.to_numpy(sel2_vbf_jets[:,1].eta),
+                ak.to_numpy(sel2_b_jets[:,0].phi),
+                ak.to_numpy(sel2_b_jets[:,1].phi),
+                ak.to_numpy(sel2_vbf_jets[:,0].phi),
+                ak.to_numpy(sel2_vbf_jets[:,1].phi),
+                ak.to_numpy(sel2_b_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_b_jets[:,1].btagDeepB),
+                ak.to_numpy(sel2_vbf_jets[:,0].btagDeepB),
+                ak.to_numpy(sel2_vbf_jets[:,1].btagDeepB),
+                ak.to_numpy((sel2_b_jets[:,0]+sel2_b_jets[:,1]).mass),
+                ak.to_numpy((sel2_vbf_jets[:,0]+sel2_vbf_jets[:,1]).mass),
+                ak.to_numpy(sel2_vbf_jets[:,0].eta - sel2_vbf_jets[:,1].eta),
+                ak.to_numpy(np.sqrt(2*(sel2_electrons+sel2_b_jets[:,0]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_b_jets[:,0]).phi)))),ak.to_numpy(np.sqrt(2*(sel2_electrons+sel2_b_jets[:,1]).pt*sel2_events.PuppiMET.pt*(1 - np.cos(sel2_events.PuppiMET.phi - (sel2_electrons+sel2_b_jets[:,1]).phi))))))),
+                columns=['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','metpt','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbfjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbfjet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt'])
 
             sel2_d = xgb.DMatrix(sel2_X)
 
-            sel2_bdtscore = bst.predict(sel2_d)
+            sel2_bdtscore = bst.predict(sel2_d)    
 
             if dataset == 'data':
                 sel2_weight = np.ones(len(sel2_events))
@@ -1756,37 +1662,37 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
                 sel2_puUp_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
                 sel2_puDown_weight = evaluator['pileup_down'](sel2_events.Pileup.nTrueInt)
-                sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_electronidsfUp = ak.firsts(evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronidsf
-                sel2_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_electronrecosfUp = ak.firsts(evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronrecosf
+                sel2_electronidsf = evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt)
+                sel2_electronidsfUp = evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt)+sel2_electronidsf
+                sel2_electronrecosf = evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt)
+                sel2_electronrecosfUp = evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt)+sel2_electronrecosf
 
                 sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
                 sel2_weight_reweighted = []
                 for i in range(args.nreweights):
                     sel2_weight_reweighted.append(np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,i])
-                sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_electronidsfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_electronrecosfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_pileupup = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_pileupdown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_prefireup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_electronidsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight_electronrecosfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp*sel2_events.LHEReweightingWeight[:,9]
 
 
             else:
                 sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
-                sel2_puUp_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
-                sel2_puDown_weight = evaluator['pileup_down'](sel2_events.Pileup.nTrueInt)
-                sel2_electronidsf = ak.firsts(evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_electronidsfUp = ak.firsts(evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronidsf
-                sel2_electronrecosf = ak.firsts(evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt))
-                sel2_electronrecosfUp = ak.firsts(evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt))+sel2_electronrecosf
+                sel2_puup_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
+                sel2_pudown_weight = evaluator['pileup_down'](sel2_events.Pileup.nTrueInt)
+                sel2_electronidsf = evaluator['electronidsf'](sel2_electrons.eta, sel2_electrons.pt)
+                sel2_electronidsfUp = evaluator['electronidsfunc'](sel2_electrons.eta, sel2_electrons.pt)+sel2_electronidsf
+                sel2_electronrecosf = evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt)
+                sel2_electronrecosfUp = evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt)+sel2_electronrecosf
 
                 sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_pileupUp = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_pileupDown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_prefireUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_electronidsfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf
-                sel2_weight_electronrecosfUp = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp
+                sel2_weight_pileupup = np.sign(sel2_events.Generator.weight)*sel2_puup_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_pileupdown = np.sign(sel2_events.Generator.weight)*sel2_pudown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_prefireup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
+                sel2_weight_electronidsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf
+                sel2_weight_electronrecosfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp
 
             output['sel2_bdtscore_binning1'].fill(
                 dataset=dataset,
@@ -1805,34 +1711,34 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             if dataset != 'data':
 
-                output['sel2_bdtscore_binning1_pileupUp'].fill(
+                output['sel2_bdtscore_binning1_pileupup'].fill(
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
-                    weight=sel2_weight_pileupUp
+                    weight=sel2_weight_pileupup
                 )
 
-                output['sel2_bdtscore_binning1_pileupDown'].fill(
+                output['sel2_bdtscore_binning1_pileupdown'].fill(
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
-                    weight=sel2_weight_pileupDown
+                    weight=sel2_weight_pileupdown
                 )
 
-                output['sel2_bdtscore_binning1_prefireUp'].fill(
+                output['sel2_bdtscore_binning1_prefireup'].fill(
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
-                    weight=sel2_weight_prefireUp
+                    weight=sel2_weight_prefireup
                 )
 
-                output['sel2_bdtscore_binning1_electronidsfUp'].fill(
+                output['sel2_bdtscore_binning1_electronidsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
-                    weight=sel2_weight_electronidsfUp
+                    weight=sel2_weight_electronidsfup
                 )
 
-                output['sel2_bdtscore_binning1_electronrecosfUp'].fill(
+                output['sel2_bdtscore_binning1_electronrecosfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
-                    weight=sel2_weight_electronrecosfUp
+                    weight=sel2_weight_electronrecosfup
                 )
 
             output['sel2_bdtscore_binning2'].fill(
@@ -1849,37 +1755,37 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel2_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel2_jets[0]+sel2_jets[1]).mass),
+                higgsdijetmass=(sel2_b_jets[:,0]+sel2_b_jets[:,1]).mass,
                 weight=sel2_weight
             )
 
             output['sel2_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel2_jets[0]+sel2_jets[1]).pt),
+                higgsdijetpt=(sel2_b_jets[:,0]+sel2_b_jets[:,1]).pt,
                 weight=sel2_weight
             )
         
-            output['sel2_vbsdijetmass_binning1'].fill(
+            output['sel2_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel2_jets[2]+sel2_jets[3]).mass),
+                vbfdijetmass=(sel2_vbf_jets[:,0]+sel2_vbf_jets[:,1]).mass,
                 weight=sel2_weight
             )
 
-            output['sel2_vbsdijetmass_binning2'].fill(
+            output['sel2_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel2_jets[2]+sel2_jets[3]).mass),
+                vbfdijetmass=(sel2_vbf_jets[:,0]+sel2_vbf_jets[:,1]).mass,
                 weight=sel2_weight
             )
 
-            output['sel2_vbsdijetabsdeta_binning1'].fill(
+            output['sel2_vbfdijetabsdeta_binning1'].fill(
                 dataset=dataset,
-                vbsdijetabsdeta=ak.firsts(sel2_jets[2]).eta - ak.firsts(sel2_jets[3]).eta,
+                vbfdijetabsdeta=abs(sel2_vbf_jets[:,0].eta - sel2_vbf_jets[:,1].eta),
                 weight=sel2_weight
             )
 
             output['sel2_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel2_electrons.pt),
+                leptonpt=sel2_electrons.pt,
                 weight=sel2_weight
             )
 
@@ -1905,49 +1811,49 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             if dataset != 'data':
 
-                output['sel3_bdtscore_binning1_pileupUp'].fill(
+                output['sel3_bdtscore_binning1_pileupup'].fill(
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
-                    weight=sel2_weight_pileupUp
+                    weight=sel2_weight_pileupup
                 )
 
-                output['sel3_bdtscore_binning1_pileupDown'].fill(
+                output['sel3_bdtscore_binning1_pileupdown'].fill(
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
-                    weight=sel2_weight_pileupDown
+                    weight=sel2_weight_pileupdown
                 )
 
-                output['sel3_bdtscore_binning1_prefireUp'].fill(
+                output['sel3_bdtscore_binning1_prefireup'].fill(
                     dataset=dataset,
                     bdtscore = sel2_bdtscore,
-                    weight=sel2_weight_prefireUp
+                    weight=sel2_weight_prefireup
                 )
                 
-                output['sel3_bdtscore_binning1_electronidsfUp'].fill(
+                output['sel3_bdtscore_binning1_electronidsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
-                    weight=sel2_weight_electronidsfUp
+                    weight=sel2_weight_electronidsfup
                 )
 
-                output['sel3_bdtscore_binning1_electronrecosfUp'].fill(
+                output['sel3_bdtscore_binning1_electronrecosfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
-                    weight=sel2_weight_electronrecosfUp
+                    weight=sel2_weight_electronrecosfup
                 )
                 
-                output['sel3_bdtscore_binning1_muonidsfUp'].fill(
+                output['sel3_bdtscore_binning1_muonidsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
                     weight=sel2_weight
                 )
                 
-                output['sel3_bdtscore_binning1_muonisosfUp'].fill(
+                output['sel3_bdtscore_binning1_muonisosfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
                     weight=sel2_weight
                 )
                 
-                output['sel3_bdtscore_binning1_muonhltsfUp'].fill(
+                output['sel3_bdtscore_binning1_muonhltsfup'].fill(
                     dataset=dataset,
                     bdtscore=sel2_bdtscore,
                     weight=sel2_weight
@@ -1967,37 +1873,37 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel3_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel2_jets[0]+sel2_jets[1]).mass),
+                higgsdijetmass=(sel2_b_jets[:,0]+sel2_b_jets[:,1]).mass,
                 weight=sel2_weight
             )
 
             output['sel3_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel2_jets[0]+sel2_jets[1]).pt),
+                higgsdijetpt=(sel2_b_jets[:,0]+sel2_b_jets[:,1]).pt,
                 weight=sel2_weight
             )
         
-            output['sel3_vbsdijetmass_binning1'].fill(
+            output['sel3_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel2_jets[2]+sel2_jets[3]).mass),
+                vbfdijetmass=(sel2_vbf_jets[:,0]+sel2_vbf_jets[:,1]).mass,
                 weight=sel2_weight
             )
 
-            output['sel3_vbsdijetmass_binning2'].fill(
+            output['sel3_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel2_jets[2]+sel2_jets[3]).mass),
+                vbfdijetmass=(sel2_vbf_jets[:,0]+sel2_vbf_jets[:,1]).mass,
                 weight=sel2_weight
             )
 
-            output['sel3_vbsdijetabsdeta_binning1'].fill(
+            output['sel3_vbfdijetabsdeta_binning1'].fill(
                 dataset=dataset,
-                vbsdijetabsdeta=ak.firsts(sel2_jets[2]).eta - ak.firsts(sel2_jets[3]).eta,
+                vbfdijetabsdeta=abs(sel2_vbf_jets[:,0].eta - sel2_vbf_jets[:,1].eta),
                 weight=sel2_weight
             )
 
             output['sel3_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel2_electrons.pt),
+                leptonpt=sel2_electrons.pt,
                 weight=sel2_weight
             )
 
@@ -2009,12 +1915,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
         if ak.any(basecut) and ak.any(cut4):
                 
-            sel4_particleindices = particleindices[cut4]
-        
             sel4_events = events[cut4]
-            
-            sel4_jets = [sel4_events.Jet[sel4_particleindices[idx]] for idx in '0123']
-            sel4_muons = sel4_events.Muon[sel4_particleindices['4']]
+            sel4_b_jets = b_jets[cut4]
+            sel4_vbf_jets = vbf_jets[cut4]
+            sel4_muons = tight_muons[cut4][:,0]
             
             if dataset == 'data':
                 sel4_weight = np.ones(len(sel4_events))
@@ -2023,31 +1927,31 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel4_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel4_jets[0]+sel4_jets[1]).mass),
+                higgsdijetmass=(sel4_b_jets[:,0]+sel4_b_jets[:,1]).mass,
                 weight=sel4_weight
             )
 
             output['sel4_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel4_jets[0]+sel4_jets[1]).pt),
+                higgsdijetpt=(sel4_b_jets[:,0]+sel4_b_jets[:,1]).pt,
                 weight=sel4_weight
             )
         
-            output['sel4_vbsdijetmass_binning1'].fill(
+            output['sel4_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel4_jets[2]+sel4_jets[3]).mass),
+                vbfdijetmass=(sel4_vbf_jets[:,0]+sel4_vbf_jets[:,1]).mass,
                 weight=sel4_weight
             )
 
-            output['sel4_vbsdijetmass_binning2'].fill(
+            output['sel4_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel4_jets[2]+sel4_jets[3]).mass),
+                vbfdijetmass=(sel4_vbf_jets[:,0]+sel4_vbf_jets[:,1]).mass,
                 weight=sel4_weight
             )
 
             output['sel4_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel4_muons.pt),
+                leptonpt=sel4_muons.pt,
                 weight=sel4_weight
             )
 
@@ -2059,31 +1963,31 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel6_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel4_jets[0]+sel4_jets[1]).mass),
+                higgsdijetmass=(sel4_b_jets[:,0]+sel4_b_jets[:,1]).mass,
                 weight=sel4_weight
             )
 
             output['sel6_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel4_jets[0]+sel4_jets[1]).pt),
+                higgsdijetpt=(sel4_b_jets[:,0]+sel4_b_jets[:,1]).pt,
                 weight=sel4_weight
             )
         
-            output['sel6_vbsdijetmass_binning1'].fill(
+            output['sel6_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel4_jets[2]+sel4_jets[3]).mass),
+                vbfdijetmass=(sel4_vbf_jets[:,0]+sel4_vbf_jets[:,1]).mass,
                 weight=sel4_weight
             )
 
-            output['sel6_vbsdijetmass_binning2'].fill(
+            output['sel6_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel4_jets[2]+sel4_jets[3]).mass),
+                vbfdijetmass=(sel4_vbf_jets[:,0]+sel4_vbf_jets[:,1]).mass,
                 weight=sel4_weight
             )
 
             output['sel6_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel4_muons.pt),
+                leptonpt=sel4_muons.pt,
                 weight=sel4_weight
             )
 
@@ -2095,12 +1999,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
         if ak.any(basecut) and ak.any(cut5):
                 
-            sel5_particleindices = particleindices[cut5]
-        
             sel5_events = events[cut5]
             
-            sel5_jets = [sel5_events.Jet[sel5_particleindices[idx]] for idx in '0123']
-            sel5_electrons = sel5_events.Electron[sel5_particleindices['4']]
+            sel5_b_jets = b_jets[cut5]
+            sel5_vbf_jets = vbf_jets[cut5]
+            sel5_electrons = tight_electrons[cut5][:,0]
             
             if dataset == 'data':
                 sel5_weight = np.ones(len(sel5_events))
@@ -2109,31 +2012,31 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel5_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel5_jets[0]+sel5_jets[1]).mass),
+                higgsdijetmass=(sel5_b_jets[:,0]+sel5_b_jets[:,1]).mass,
                 weight=sel5_weight
             )
 
             output['sel5_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel5_jets[0]+sel5_jets[1]).pt),
+                higgsdijetpt=(sel5_b_jets[:,0]+sel5_b_jets[:,1]).pt,
                 weight=sel5_weight
             )
         
-            output['sel5_vbsdijetmass_binning1'].fill(
+            output['sel5_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel5_jets[2]+sel5_jets[3]).mass),
+                vbfdijetmass=(sel5_vbf_jets[:,0]+sel5_vbf_jets[:,1]).mass,
                 weight=sel5_weight
             )
 
-            output['sel5_vbsdijetmass_binning2'].fill(
+            output['sel5_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel5_jets[2]+sel5_jets[3]).mass),
+                vbfdijetmass=(sel5_vbf_jets[:,0]+sel5_vbf_jets[:,1]).mass,
                 weight=sel5_weight
             )
 
             output['sel5_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel5_electrons.pt),
+                leptonpt=sel5_electrons.pt,
                 weight=sel5_weight
             )
 
@@ -2145,31 +2048,31 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             output['sel6_higgsdijetmass_binning1'].fill(
                 dataset=dataset,
-                higgsdijetmass=ak.firsts((sel5_jets[0]+sel5_jets[1]).mass),
+                higgsdijetmass=(sel5_b_jets[:,0]+sel5_b_jets[:,1]).mass,
                 weight=sel5_weight
             )
 
             output['sel6_higgsdijetpt_binning1'].fill(
                 dataset=dataset,
-                higgsdijetpt=ak.firsts((sel5_jets[0]+sel5_jets[1]).pt),
+                higgsdijetpt=(sel5_b_jets[:,0]+sel5_b_jets[:,1]).pt,
                 weight=sel5_weight
             )
         
-            output['sel6_vbsdijetmass_binning1'].fill(
+            output['sel6_vbfdijetmass_binning1'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel5_jets[2]+sel5_jets[3]).mass),
+                vbfdijetmass=(sel5_vbf_jets[:,0]+sel5_vbf_jets[:,1]).mass,
                 weight=sel5_weight
             )
 
-            output['sel6_vbsdijetmass_binning2'].fill(
+            output['sel6_vbfdijetmass_binning2'].fill(
                 dataset=dataset,
-                vbsdijetmass=ak.firsts((sel5_jets[2]+sel5_jets[3]).mass),
+                vbfdijetmass=(sel5_vbf_jets[:,0]+sel5_vbf_jets[:,1]).mass,
                 weight=sel5_weight
             )
 
             output['sel6_leptonpt_binning1'].fill(
                 dataset=dataset,
-                leptonpt=ak.firsts(sel5_electrons.pt),
+                leptonpt=sel5_electrons.pt,
                 weight=sel5_weight
             )
 
@@ -2185,46 +2088,49 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         return accumulator
 
 if year == '2016':
-    filelists = {
-        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singlemuon.txt',
-        'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singleelectron.txt',
-        'w' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/w.txt',
-        'ww' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ww.txt',
-        'ewkwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ewkwhjj.txt',
-        'qcdwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/qcdwhjj.txt',
-        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ttsemi.txt',
-        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/tthad.txt'
+    samples = {
+        'singlemuon' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singlemuon.txt', 'frac' : 1},
+        'singleelectron' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/singleelectron.txt', 'frac' : 1},
+        'w' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/w.txt', 'frac' : 1},
+        'ww' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ww.txt', 'frac' : 1},
+        'ewkwhjj': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ewkwhjj.txt', 'frac' : 1},
+        'qcdwhjj': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/qcdwhjj.txt', 'frac' : 1},
+        'ttsemi': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/ttsemi.txt', 'frac' : 1},
+        'tthad': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2016/tthad.txt', 'frac' : 1},
     }
 elif year == '2017':
-    filelists = {
-        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singlemuon.txt',
-        'singleelectron' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singleelectron.txt',
-        'ttsemi' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/ttsemi.txt'
+    samples = {
+        'singlemuon' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singlemuon.txt', 'frac' : 1},
+        'singleelectron' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/singleelectron.txt', 'frac' : 1},
+        'ttsemi' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2017/ttsemi.txt', 'frac' : 1},
     }
 elif year == '2018':
-    filelists = {
-        'singlemuon' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt',
-        'egamma' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt',
-        'ewkwhjj_reweighted': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
-        'ewkwhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt',
-        'ttsemi': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt',
-        'tthad': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt',
-#        'qcdwphjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwphjj.txt',
-#        'qcdwmhjj': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmhjj.txt',
-        'qcdwph': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt',
-        'qcdwmh': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt',
-#        'wlep' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wlep.txt',
-        'wlep2j': '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wlep2j.txt',
+    samples = {
+        'singlemuon' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/singlemuon.txt', 'frac' : 1},
+        'egamma' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/egamma.txt', 'frac' : 1},
+        'ewkwhjj_reweighted': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt', 'frac' : 1},
+        'ewkwhjj': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ewkwhjj_reweighted.txt', 'frac' : 1},
+        'ttsemi': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/ttsemi.txt', 'frac' : 1},
+        'tthad': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/tthad.txt', 'frac' : 1},
+        #        'qcdwphjj': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwphjj.txt', 'frac' : 1},
+        #        'qcdwmhjj': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmhjj.txt', 'frac' : 1},
+        'qcdwph': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwph.txt', 'frac' : 1},
+        'qcdwmh': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/qcdwmh.txt', 'frac' : 1},
+        #        'wlepbb' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wbb.txt', 'frac' : 1},
+        'wlep' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wlep.txt', 'frac' : 1},
+        #        'wlep2j': {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/wlep2j.txt', 'frac' : 1},
+        'stoptchan' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/stoptchan.txt', 'frac' : 1},
+        'santitoptchan' : {'filelist' : '/afs/cern.ch/user/a/amlevin/ewkwhjj/filelists/2018/santitoptchan.txt', 'frac' : 1},
 
     }
 else:
     assert(0)
 
-samples = {}
-
-for filelist in filelists:
-    f = open(filelists[filelist])
-    samples[filelist] = f.read().rstrip('\n').split('\n')
+for sample in samples:
+    f = open(samples[sample]['filelist'])
+    frac = samples[sample]['frac']
+    samples[sample] = f.read().rstrip('\n').split('\n')
+    samples[sample] = samples[sample][0:int(frac*len(samples[sample]))]
 
 """
     
