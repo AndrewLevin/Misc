@@ -8,7 +8,9 @@ import uproot as uproot
 from coffea.nanoevents import NanoEventsFactory, BaseSchema, NanoAODSchema
 
 import awkward as ak
-from coffea import hist, processor
+import coffea.hist
+from coffea import processor
+
 
 from coffea.nanoevents.methods import candidate
 ak.behavior.update(candidate.behavior)
@@ -17,6 +19,7 @@ from coffea.lumi_tools import LumiMask
 
 import numba
 
+import hist
 
 import math
 import numpy as np
@@ -28,6 +31,34 @@ import pandas
 import argparse
 
 import pprint
+
+from coffea.lookup_tools.dense_lookup import dense_lookup
+
+import correctionlib
+
+cset = correctionlib.CorrectionSet.from_file("/afs/cern.ch/user/a/amlevin/ewkwhjj/data/2018/btagging.json.gz")
+#print([c for c in cset])
+
+def lighttagSF(j, syst="central"):
+    # until correctionlib handles jagged data natively we have to flatten and unflatten
+    j, nj = ak.flatten(j), ak.num(j)
+    sf = cset["deepCSV_incl"].evaluate(syst, "M", np.array(j.hadronFlavour), np.array(abs(j.eta)), np.array(j.pt))
+    return ak.unflatten(sf, nj)
+
+
+def btagSF(j, syst="central"):
+    # until correctionlib handles jagged data natively we have to flatten and unflatten
+    j, nj = ak.flatten(j), ak.num(j)
+    sf = cset["deepCSV_comb"].evaluate(syst, "T", np.array(j.hadronFlavour), np.array(abs(j.eta)), np.array(j.pt))
+    return ak.unflatten(sf, nj)
+
+def combine(eff, sf, passbtag):
+    # tagged SF = SF*eff / eff = SF
+    tagged_sf = ak.prod(sf[passbtag], axis=-1)
+    # untagged SF = (1 - SF*eff) / (1 - eff)
+    # untagged_sf = ak.prod(((1 - sf*eff) / (1 - eff))[~passbtag], axis=-1)
+    untagged_sf = ak.prod((((1 - sf*eff)[~passbtag]) / ((1 - eff)[~passbtag])), axis=-1)
+    return tagged_sf * untagged_sf
 
 parser = argparse.ArgumentParser()
 
@@ -154,455 +185,515 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         self._accumulator = processor.dict_accumulator({
             'sumw': processor.defaultdict_accumulator(float),
             'nevents': processor.defaultdict_accumulator(float),
-            'sel1_bdtscore_binning1': hist.Hist(
+            'sel1_bdtscore_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_pileupup': hist.Hist(
+            'sel1_bdtscore_binning1_pileupup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_pileupdown': hist.Hist(
+            'sel1_bdtscore_binning1_pileupdown': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_prefireup': hist.Hist(
+            'sel1_bdtscore_binning1_prefireup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_electronidsfup': hist.Hist(
+            'sel1_bdtscore_binning1_electronidsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_electronrecosfup': hist.Hist(
+            'sel1_bdtscore_binning1_electronrecosfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_muonidsfup': hist.Hist(
+            'sel1_bdtscore_binning1_muonidsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_muonisosfup': hist.Hist(
+            'sel1_bdtscore_binning1_muonisosfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_muonhltsfup': hist.Hist(
+            'sel1_bdtscore_binning1_muonhltsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_jesup': hist.Hist(
+            'sel1_bdtscore_binning1_bcbtagsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning1_jerup': hist.Hist(
+            'sel1_bdtscore_binning1_lightbtagsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning2': hist.Hist(
+            'sel1_bdtscore_binning1_jesup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_bdtscore_binning3': hist.Hist(
+            'sel1_bdtscore_binning1_jerup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel1_higgsdijetmass_binning1': hist.Hist(
+            'sel1_bdtscore_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
             ),
-            'sel1_higgsdijetpt_binning1': hist.Hist(
+            'sel1_bdtscore_binning3': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
             ),
-            'sel1_vbfdijetmass_binning1': hist.Hist(
+            'sel1_higgsdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
             ),
-            'sel1_vbfdijetmass_binning2': hist.Hist(
+            'sel1_higgsdijetpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel1_vbfdijetabsdeta_binning1': hist.Hist(
+            'sel1_vbfdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel1_leptonpt_binning1': hist.Hist(
+            'sel1_vbfdijetmass_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
             ),
-            'sel1_met_binning1': hist.Hist(
+            'sel1_vbfdijetabsdeta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('met', 'MET [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
             ),
-            'sel2_bdtscore_binning1': hist.Hist(
+            'sel1_leptonpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
             ),
-            'sel2_bdtscore_binning1_pileupup': hist.Hist(
+            'sel1_leptonabseta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonabseta', 'Lepton |eta|', 25, 0, 2.5),
             ),
-            'sel2_bdtscore_binning1_pileupdown': hist.Hist(
+            'sel1_met_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('met', 'MET [GeV]', 20, 0, 200),
             ),
-            'sel2_bdtscore_binning1_prefireup': hist.Hist(
+            'sel2_bdtscore_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_electronidsfup': hist.Hist(
+            'sel2_bdtscore_binning1_pileupup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_electronrecosfup': hist.Hist(
+            'sel2_bdtscore_binning1_pileupdown': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_jesup': hist.Hist(
+            'sel2_bdtscore_binning1_prefireup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning1_jerup': hist.Hist(
+            'sel2_bdtscore_binning1_electronidsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning2': hist.Hist(
+            'sel2_bdtscore_binning1_electronrecosfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_bdtscore_binning3': hist.Hist(
+            'sel2_bdtscore_binning1_bcbtagsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_higgsdijetmass_binning1': hist.Hist(
+            'sel2_bdtscore_binning1_lightbtagsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_higgsdijetpt_binning1': hist.Hist(
+            'sel2_bdtscore_binning1_jesup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_vbfdijetmass_binning1': hist.Hist(
+            'sel2_bdtscore_binning1_jerup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel2_vbfdijetmass_binning2': hist.Hist(
+            'sel2_bdtscore_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
             ),
-            'sel2_vbfdijetabsdeta_binning1': hist.Hist(
+            'sel2_bdtscore_binning3': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
             ),
-            'sel2_leptonpt_binning1': hist.Hist(
+            'sel2_higgsdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
             ),
-            'sel2_met_binning1': hist.Hist(
+            'sel2_higgsdijetpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('met', 'MET [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel3_bdtscore_binning1': hist.Hist(
+            'sel2_vbfdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel3_bdtscore_binning1_pileupup': hist.Hist(
+            'sel2_vbfdijetmass_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
             ),
-            'sel3_bdtscore_binning1_pileupdown': hist.Hist(
+            'sel2_vbfdijetabsdeta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
             ),
-            'sel3_bdtscore_binning1_prefireup': hist.Hist(
+            'sel2_leptonpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
             ),
-            'sel3_bdtscore_binning1_electronidsfup': hist.Hist(
+            'sel2_leptonabseta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonabseta', 'Lepton |eta|', 25, 0, 2.5),
             ),
-            'sel3_bdtscore_binning1_electronrecosfup': hist.Hist(
+            'sel2_met_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('met', 'MET [GeV]', 20, 0, 200),
             ),
-            'sel3_bdtscore_binning1_muonidsfup': hist.Hist(
+            'sel3_bdtscore_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_muonisosfup': hist.Hist(
+            'sel3_bdtscore_binning1_pileupup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_muonhltsfup': hist.Hist(
+            'sel3_bdtscore_binning1_pileupdown': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_jesup': hist.Hist(
+            'sel3_bdtscore_binning1_prefireup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning1_jerup': hist.Hist(
+            'sel3_bdtscore_binning1_electronidsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning2': hist.Hist(
+            'sel3_bdtscore_binning1_electronrecosfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_bdtscore_binning3': hist.Hist(
+            'sel3_bdtscore_binning1_muonidsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_higgsdijetmass_binning1': hist.Hist(
+            'sel3_bdtscore_binning1_muonisosfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_higgsdijetpt_binning1': hist.Hist(
+            'sel3_bdtscore_binning1_muonhltsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_vbfdijetmass_binning1': hist.Hist(
+            'sel3_bdtscore_binning1_bcbtagsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_vbfdijetmass_binning2': hist.Hist(
+            'sel3_bdtscore_binning1_lightbtagsfup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_vbfdijetabsdeta_binning1': hist.Hist(
+            'sel3_bdtscore_binning1_jesup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_leptonpt_binning1': hist.Hist(
+            'sel3_bdtscore_binning1_jerup': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1),
             ),
-            'sel3_met_binning1': hist.Hist(
+            'sel3_bdtscore_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('met', 'MET [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
             ),
-            'sel4_higgsdijetmass_binning1': hist.Hist(
+            'sel3_bdtscore_binning3': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
             ),
-            'sel4_higgsdijetpt_binning1': hist.Hist(
+            'sel3_higgsdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
             ),
-            'sel4_vbfdijetmass_binning1': hist.Hist(
+            'sel3_higgsdijetpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel4_vbfdijetmass_binning2': hist.Hist(
+            'sel3_vbfdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel4_leptonpt_binning1': hist.Hist(
+            'sel3_vbfdijetmass_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 39, 100, 4000),
             ),
-            'sel4_met_binning1': hist.Hist(
+            'sel3_vbfdijetabsdeta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('met', 'MET [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetabsdeta', 'VBF dijet $\Delta \eta$', 55, 2.5, 8),
             ),
-            'sel5_higgsdijetmass_binning1': hist.Hist(
+            'sel3_leptonpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
             ),
-            'sel5_higgsdijetpt_binning1': hist.Hist(
+            'sel3_leptonabseta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonabseta', 'Lepton |eta|', 25, 0, 2.5),
             ),
-            'sel5_vbfdijetmass_binning1': hist.Hist(
+            'sel3_met_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('met', 'MET [GeV]', 20, 0, 200),
             ),
-            'sel5_vbfdijetmass_binning2': hist.Hist(
+            'sel4_higgsdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
             ),
-            'sel5_leptonpt_binning1': hist.Hist(
+            'sel4_higgsdijetpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel5_met_binning1': hist.Hist(
+            'sel4_vbfdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('met', 'MET [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel6_higgsdijetmass_binning1': hist.Hist(
+            'sel4_vbfdijetmass_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
             ),
-            'sel6_higgsdijetpt_binning1': hist.Hist(
+            'sel4_leptonpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
             ),
-            'sel6_vbfdijetmass_binning1': hist.Hist(
+            'sel4_leptonabseta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonabseta', 'Lepton |eta|', 25, 0, 2.5),
             ),
-            'sel6_vbfdijetmass_binning2': hist.Hist(
+            'sel4_met_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('met', 'MET [GeV]', 20, 0, 200),
             ),
-            'sel6_leptonpt_binning1': hist.Hist(
+            'sel5_higgsdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
             ),
-            'sel6_met_binning1': hist.Hist(
+            'sel5_higgsdijetpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('met', 'MET [GeV]', 20, 0, 200),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel7_higgsjetmass_binning1': hist.Hist(
+            'sel5_vbfdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsjetmass', 'Higgs jet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel7_higgsjetsoftdropmass_binning1': hist.Hist(
+            'sel5_vbfdijetmass_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsjetsoftdropmass', 'Higgs jet soft drop mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
             ),
-            'sel7_bdtscore_binning1': hist.Hist(
+            'sel5_leptonpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1.0),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
             ),
-            'sel7_bdtscore_binning2': hist.Hist(
+            'sel5_leptonabseta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonabseta', 'Lepton |eta|', 25, 0, 2.5),
             ),
-            'sel7_bdtscore_binning3': hist.Hist(
+            'sel5_met_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('met', 'MET [GeV]', 20, 0, 200),
             ),
-            'sel8_higgsjetmass_binning1': hist.Hist(
+            'sel6_higgsdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsjetmass', 'Higgs jet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetmass', 'Higgs dijet mass [GeV]', 75, 0, 300),
             ),
-            'sel8_higgsjetsoftdropmass_binning1': hist.Hist(
+            'sel6_higgsdijetpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsjetsoftdropmass', 'Higgs jet soft drop mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsdijetpt', 'Higgs dijet pt [GeV]', 20, 0, 200),
             ),
-            'sel8_bdtscore_binning1': hist.Hist(
+            'sel6_vbfdijetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1.0),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 19, 100, 2000),
             ),
-            'sel8_bdtscore_binning2': hist.Hist(
+            'sel6_vbfdijetmass_binning2': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('vbfdijetmass', 'VBF dijet mass [GeV]', 4, 100, 500),
             ),
-            'sel8_bdtscore_binning3': hist.Hist(
+            'sel6_leptonpt_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonpt', 'Lepton pt [GeV]', 19, 20, 200),
             ),
-            'sel9_higgsjetmass_binning1': hist.Hist(
+            'sel6_leptonabseta_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsjetmass', 'Higgs jet mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('leptonabseta', 'Lepton |eta|', 25, 0, 2.5),
             ),
-            'sel9_higgsjetsoftdropmass_binning1': hist.Hist(
+            'sel6_met_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('higgsjetsoftdropmass', 'Higgs jet soft drop mass [GeV]', 75, 0, 300),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('met', 'MET [GeV]', 20, 0, 200),
             ),
-            'sel9_bdtscore_binning1': hist.Hist(
+            'sel7_higgsjetmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 20, 0, 1.0),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsjetmass', 'Higgs jet mass [GeV]', 75, 0, 300),
             ),
-            'sel9_bdtscore_binning2': hist.Hist(
+            'sel7_higgsjetsoftdropmass_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsjetsoftdropmass', 'Higgs jet soft drop mass [GeV]', 75, 0, 300),
             ),
-            'sel9_bdtscore_binning3': hist.Hist(
+            'sel7_bdtscore_binning1': coffea.hist.Hist(
                 'Events',
-                hist.Cat('dataset', 'Dataset'),
-                hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1.0),
+            ),
+            'sel7_bdtscore_binning2': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+            ),
+            'sel7_bdtscore_binning3': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+            ),
+            'sel8_higgsjetmass_binning1': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsjetmass', 'Higgs jet mass [GeV]', 75, 0, 300),
+            ),
+            'sel8_higgsjetsoftdropmass_binning1': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsjetsoftdropmass', 'Higgs jet soft drop mass [GeV]', 75, 0, 300),
+            ),
+            'sel8_bdtscore_binning1': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1.0),
+            ),
+            'sel8_bdtscore_binning2': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+            ),
+            'sel8_bdtscore_binning3': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
+            ),
+            'sel9_higgsjetmass_binning1': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsjetmass', 'Higgs jet mass [GeV]', 75, 0, 300),
+            ),
+            'sel9_higgsjetsoftdropmass_binning1': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('higgsjetsoftdropmass', 'Higgs jet soft drop mass [GeV]', 75, 0, 300),
+            ),
+            'sel9_bdtscore_binning1': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 20, 0, 1.0),
+            ),
+            'sel9_bdtscore_binning2': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 40, -0.5, 1.5),
+            ),
+            'sel9_bdtscore_binning3': coffea.hist.Hist(
+                'Events',
+                coffea.hist.Cat('dataset', 'Dataset'),
+                coffea.hist.Bin('bdtscore', 'BDT score', 21, 0, 1.05),
             ),
 
         })
@@ -658,6 +749,76 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         loose_not_tight_muons = events.Muon[events.Muon.tightId & (events.Muon.pfRelIso04_all < 0.4) & (events.Muon.pfRelIso04_all > 0.15) & (events.Muon.pt > 20) & (abs(events.Muon.eta) < 2.4)]
 
         tight_electrons = events.Electron[(events.Electron.pt > 30) & (events.Electron.cutBased >= 3) & (events.Electron.eta + events.Electron.deltaEtaSC < 2.5) & ((abs(events.Electron.dz) < 0.1) & (abs(events.Electron.dxy) < 0.05) & (events.Electron.eta + events.Electron.deltaEtaSC < 1.479)) | ((abs(events.Electron.dz) < 0.2) & (abs(events.Electron.dxy) < 0.1) & (events.Electron.eta + events.Electron.deltaEtaSC > 1.479))]
+
+        if dataset not in ['singleelectron','singlemuon','egamma']:
+
+            phasespace_cuts = (
+                (events.Jet.cleanmask == 1) 
+                & (abs(events.Jet.eta) < 2.5)
+                & (events.Jet.pt > 30.)
+            )
+            
+            jets = ak.flatten(events.Jet[phasespace_cuts])
+
+            efficiencyinfo = (
+                hist.Hist.new
+                .Reg(10, 30, 300, name="pt")
+                .Reg(4, 0, 2.5, name="abseta")
+                .IntCat([0, 4, 5], name="flavor")
+                .Bool(name="passWP")
+                .Double()
+                .fill(
+                    pt=np.minimum(jets.pt,299),
+                    abseta=np.minimum(abs(jets.eta),2.49),
+                    flavor=jets.hadronFlavour,
+                    passWP=jets.btagDeepB > 0.8953, # UL 2018 medium WP
+                )
+            )
+
+            eff = efficiencyinfo[{"passWP": True}] / efficiencyinfo[{"passWP": sum}]
+
+            # note this seems to turn 0,4,5 into 0,1,2
+            # efflookup = dense_lookup(eff.values(), [ax.edges for ax in eff.axes])
+
+            edges = [ax.edges for ax in eff.axes]
+
+            assert(np.all(edges[2] == np.array([0.,1.,2.,3.])))
+            
+            edges = edges[0:2]
+
+            edges.append(np.array([0.,4.,5.]))
+
+            efflookup = dense_lookup(eff.values(), edges)
+
+            lightJets = events.Jet[phasespace_cuts & (events.Jet.hadronFlavour == 0)]
+            bcJets = events.Jet[phasespace_cuts & (events.Jet.hadronFlavour > 0)]
+            
+            lightEff = efflookup(lightJets.pt, abs(lightJets.eta), lightJets.hadronFlavour)
+            bcEff = efflookup(bcJets.pt, abs(bcJets.eta), bcJets.hadronFlavour)
+
+            lightweight = combine(
+                lightEff,
+                lighttagSF(lightJets),
+                lightJets.btagDeepB > 0.8953,
+            )
+            bcweight = combine(
+                bcEff,
+                btagSF(bcJets),
+                bcJets.btagDeepB > 0.8953,
+            )
+            btagsf = lightweight * bcweight
+
+            btagsf_lightup = combine(
+                lightEff,
+                lighttagSF(lightJets, "up"),
+                lightJets.btagDeepB > 0.8953,
+            ) * bcweight
+
+            btagsf_bcup = combine(
+                bcEff,
+                btagSF(bcJets, "up"),
+                bcJets.btagDeepB > 0.8953,
+            ) * lightweight
 
         if dataset not in ['singleelectron','singlemuon','egamma']:
 
@@ -745,6 +906,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             tight_electrons_jesup = tight_electrons[basecut_jesup]
             nextrajets_jesup = nextrajets_jesup[basecut_jesup]
             nextrabjets_jesup = nextrabjets_jesup[basecut_jesup]
+            btagsf_jesup = btagsf[basecut_jesup]
 
             basecut_jerup = (ak.num(b_jets_jerup) > 1) & (ak.num(vbf_jets_jerup) > 1) & (ak.num(tight_muons) + ak.num(tight_electrons) == 1) & (ak.num(loose_not_tight_muons) == 0) & (events.PuppiMET.ptJESUp > 30)
             events_jerup = events[basecut_jerup]
@@ -755,6 +917,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             tight_electrons_jerup = tight_electrons[basecut_jerup]
             nextrajets_jerup = nextrajets_jerup[basecut_jerup]
             nextrabjets_jerup = nextrabjets_jerup[basecut_jerup]
+            btagsf_jerup = btagsf[basecut_jerup]
 
 
 
@@ -781,6 +944,11 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         tight_electrons = tight_electrons[basecut]
         nextrajets = nextrajets[basecut]
         nextrabjets = nextrabjets[basecut]
+        if dataset not in ['singleelectron','singlemuon','egamma']:
+            btagsf = btagsf[basecut]
+            btagsf_lightup = btagsf_lightup[basecut]
+            btagsf_bcup = btagsf_bcup[basecut]
+
 
         if dataset in ['singleelectron','singlemuon','egamma']:
             dataset = 'data'
@@ -1039,6 +1207,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel1_jesup_muonidsf = evaluator['muonidsf'](abs(sel1_jesup_muons.eta), sel1_jesup_muons.pt)
             sel1_jesup_muonisosf = evaluator['muonisosf'](abs(sel1_jesup_muons.eta), sel1_jesup_muons.pt)
             sel1_jesup_muonhltsf = evaluator['muonhltsf'](abs(sel1_jesup_muons.eta), sel1_jesup_muons.pt)
+            sel1_jesup_btagsf = btagsf_jesup[cut1_jesup]
 
             sel1_jesup_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(sel1_jesup_nextrajets),
@@ -1078,9 +1247,9 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel1_jesup_bdtscore = bst.predict(sel1_jesup_d)
 
             if dataset == 'ewkwhjj_reweighted':
-                sel1_jesup_weight = np.sign(sel1_jesup_events.Generator.weight)*sel1_jesup_pu_weight*sel1_jesup_events.L1PreFiringWeight.Nom*sel1_jesup_muonidsf*sel1_jesup_muonisosf*sel1_jesup_muonhltsf*sel1_jesup_events.LHEReweightingWeight[:,9]
+                sel1_jesup_weight = np.sign(sel1_jesup_events.Generator.weight)*sel1_jesup_pu_weight*sel1_jesup_events.L1PreFiringWeight.Nom*sel1_jesup_muonidsf*sel1_jesup_muonisosf*sel1_jesup_muonhltsf*sel1_jesup_btagsf*sel1_jesup_events.LHEReweightingWeight[:,9]
             else:    
-                sel1_jesup_weight = np.sign(sel1_jesup_events.Generator.weight)*sel1_jesup_pu_weight*sel1_jesup_events.L1PreFiringWeight.Nom*sel1_jesup_muonidsf*sel1_jesup_muonisosf*sel1_jesup_muonhltsf
+                sel1_jesup_weight = np.sign(sel1_jesup_events.Generator.weight)*sel1_jesup_pu_weight*sel1_jesup_events.L1PreFiringWeight.Nom*sel1_jesup_muonidsf*sel1_jesup_muonisosf*sel1_jesup_muonhltsf*sel1_jesup_btagsf
 
             output['sel1_bdtscore_binning1_jesup'].fill(
                 dataset=dataset,
@@ -1107,6 +1276,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel1_jerup_muonidsf = evaluator['muonidsf'](abs(sel1_jerup_muons.eta), sel1_jerup_muons.pt)
             sel1_jerup_muonisosf = evaluator['muonisosf'](abs(sel1_jerup_muons.eta), sel1_jerup_muons.pt)
             sel1_jerup_muonhltsf = evaluator['muonhltsf'](abs(sel1_jerup_muons.eta), sel1_jerup_muons.pt)
+            sel1_jerup_btagsf = btagsf_jerup[cut1_jerup]
 
             sel1_jerup_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(sel1_jerup_nextrajets),
@@ -1146,9 +1316,9 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel1_jerup_bdtscore = bst.predict(sel1_jerup_d)
 
             if dataset == 'ewkwhjj_reweighted':
-                sel1_jerup_weight = np.sign(sel1_jerup_events.Generator.weight)*sel1_jerup_pu_weight*sel1_jerup_events.L1PreFiringWeight.Nom*sel1_jerup_muonidsf*sel1_jerup_muonisosf*sel1_jerup_muonhltsf*sel1_jerup_events.LHEReweightingWeight[:,9]
+                sel1_jerup_weight = np.sign(sel1_jerup_events.Generator.weight)*sel1_jerup_pu_weight*sel1_jerup_events.L1PreFiringWeight.Nom*sel1_jerup_muonidsf*sel1_jerup_muonisosf*sel1_jerup_muonhltsf*sel1_jerup_btagsf*sel1_jerup_events.LHEReweightingWeight[:,9]
             else:
-                sel1_jerup_weight = np.sign(sel1_jerup_events.Generator.weight)*sel1_jerup_pu_weight*sel1_jerup_events.L1PreFiringWeight.Nom*sel1_jerup_muonidsf*sel1_jerup_muonisosf*sel1_jerup_muonhltsf
+                sel1_jerup_weight = np.sign(sel1_jerup_events.Generator.weight)*sel1_jerup_pu_weight*sel1_jerup_events.L1PreFiringWeight.Nom*sel1_jerup_muonidsf*sel1_jerup_muonisosf*sel1_jerup_muonhltsf*sel1_jerup_btagsf
 
             output['sel1_bdtscore_binning1_jerup'].fill(
                 dataset=dataset,
@@ -1165,16 +1335,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
         if ak.any(basecut) and ak.any(cut1):
 
             sel1_events = events[cut1]
-            
             sel1_b_jets = b_jets[cut1]
-
             sel1_vbf_jets = vbf_jets[cut1]
-
             sel1_muons = tight_muons[cut1][:,0]
-
             sel1_nextrajets = nextrajets[cut1]
-
             sel1_nextrabjets = nextrabjets[cut1]
+            if dataset != 'data':
+                sel1_btagsf = btagsf[cut1]
+                sel1_btagsf_lightup = btagsf_lightup[cut1]
+                sel1_btagsf_bcup = btagsf_bcup[cut1]
 
             sel1_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(sel1_nextrajets),
@@ -1225,17 +1394,20 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel1_muonisosfUp = evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonisosf
                 sel1_muonhltsfUp = evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonhltsf
 
-                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
                 sel1_weight_reweighted = []
                 for i in range(args.nreweights):
-                    sel1_weight_reweighted.append(np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,i])
+                    sel1_weight_reweighted.append(np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,i]*sel1_btagsf)
 
-                sel1_weight_pileupup = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_pileupdown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_prefireup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_muonidsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_muonisosfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]
-                sel1_weight_muonhltsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp*sel1_events.LHEReweightingWeight[:,9]
+                sel1_weight_pileupup = np.sign(sel1_events.Generator.weight)*sel1_puUp_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
+                sel1_weight_pileupdown = np.sign(sel1_events.Generator.weight)*sel1_puDown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
+                sel1_weight_prefireup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
+                sel1_weight_muonidsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
+                sel1_weight_muonisosfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
+                sel1_weight_muonhltsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf
+                sel1_weight_bcbtagsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf_bcup
+                sel1_weight_lightbtagsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_events.LHEReweightingWeight[:,9]*sel1_btagsf_lightup
+
             else:
                 sel1_pu_weight = evaluator['pileup'](sel1_events.Pileup.nTrueInt)
                 sel1_puup_weight = evaluator['pileup_up'](sel1_events.Pileup.nTrueInt)
@@ -1247,15 +1419,15 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel1_muonisosfUp = evaluator['muonisosfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonisosf
                 sel1_muonhltsfUp = evaluator['muonhltsfunc'](abs(sel1_muons.eta), sel1_muons.pt)+sel1_muonhltsf
 
-                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-
-                sel1_weight_pileupup = np.sign(sel1_events.Generator.weight)*sel1_puup_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_pileupdown = np.sign(sel1_events.Generator.weight)*sel1_pudown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_prefireup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_muonidsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf
-                sel1_weight_muonisosfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf
-                sel1_weight_muonhltsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp
-
+                sel1_weight = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf
+                sel1_weight_pileupup = np.sign(sel1_events.Generator.weight)*sel1_puup_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf
+                sel1_weight_pileupdown = np.sign(sel1_events.Generator.weight)*sel1_pudown_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf
+                sel1_weight_prefireup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Up*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf
+                sel1_weight_muonidsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsfUp*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf
+                sel1_weight_muonisosfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosfUp*sel1_muonhltsf*sel1_btagsf
+                sel1_weight_muonhltsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsfUp*sel1_btagsf
+                sel1_weight_bcbtagsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf_bcup
+                sel1_weight_lightbtagsfup = np.sign(sel1_events.Generator.weight)*sel1_pu_weight*sel1_events.L1PreFiringWeight.Nom*sel1_muonidsf*sel1_muonisosf*sel1_muonhltsf*sel1_btagsf_lightup
                 
             output['sel1_bdtscore_binning1'].fill(
                 dataset=dataset,
@@ -1308,6 +1480,18 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     weight=sel1_weight_muonhltsfup
                 )
 
+                output['sel1_bdtscore_binning1_bcbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight_bcbtagsfup
+                )
+
+                output['sel1_bdtscore_binning1_lightbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight_lightbtagsfup
+                )
+
             output['sel1_bdtscore_binning2'].fill(
                 dataset=dataset,
                 bdtscore=sel1_bdtscore,
@@ -1353,6 +1537,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             output['sel1_leptonpt_binning1'].fill(
                 dataset=dataset,
                 leptonpt=sel1_muons.pt,
+                weight=sel1_weight
+            )
+
+            output['sel1_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel1_muons.eta),
                 weight=sel1_weight
             )
 
@@ -1426,6 +1616,18 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     weight=sel1_weight_muonhltsfup
                 )
 
+                output['sel3_bdtscore_binning1_bcbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight_bcbtagsfup
+                )
+
+                output['sel3_bdtscore_binning1_lightbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel1_bdtscore,
+                    weight=sel1_weight_lightbtagsfup
+                )
+
             output['sel3_bdtscore_binning2'].fill(
                 dataset=dataset,
                 bdtscore = sel1_bdtscore,
@@ -1474,6 +1676,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel1_weight
             )
 
+            output['sel3_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel1_muons.eta),
+                weight=sel1_weight
+            )
+
             output['sel3_met_binning1'].fill(
                 dataset=dataset,
                 met=sel1_events.PuppiMET.pt,
@@ -1492,6 +1700,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel2_jesup_pu_weight = evaluator['pileup'](sel2_jesup_events.Pileup.nTrueInt)
             sel2_jesup_electronidsf = evaluator['electronidsf'](sel2_jesup_electrons.eta, sel2_jesup_electrons.pt)
             sel2_jesup_electronrecosf = evaluator['electronrecosf'](sel2_jesup_electrons.eta, sel2_jesup_electrons.pt)
+            sel2_jesup_btagsf = btagsf_jesup[cut2_jesup]
 
             sel2_jesup_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(sel2_jesup_nextrajets),
@@ -1530,7 +1739,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_jesup_bdtscore = bst.predict(sel2_jesup_d)
 
-            sel2_jesup_weight = np.sign(sel2_jesup_events.Generator.weight)*sel2_jesup_pu_weight*sel2_jesup_events.L1PreFiringWeight.Nom*sel2_jesup_electronidsf*sel2_jesup_electronrecosf
+            if dataset == 'ewkwhjj_reweighted':
+                sel2_jesup_weight = np.sign(sel2_jesup_events.Generator.weight)*sel2_jesup_pu_weight*sel2_jesup_events.L1PreFiringWeight.Nom*sel2_jesup_electronidsf*sel2_jesup_electronrecosf*sel2_jesup_btagsf*sel2_jesup_events.LHEReweightingWeight[:,9]
+            else:    
+                sel2_jesup_weight = np.sign(sel2_jesup_events.Generator.weight)*sel2_jesup_pu_weight*sel2_jesup_events.L1PreFiringWeight.Nom*sel2_jesup_electronidsf*sel2_jesup_electronrecosf*sel2_jesup_btagsf
 
             output['sel2_bdtscore_binning1_jesup'].fill(
                 dataset=dataset,
@@ -1556,6 +1768,7 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel2_jerup_pu_weight = evaluator['pileup'](sel2_jerup_events.Pileup.nTrueInt)
             sel2_jerup_electronidsf = evaluator['electronidsf'](sel2_jerup_electrons.eta, sel2_jerup_electrons.pt)
             sel2_jerup_electronrecosf = evaluator['electronrecosf'](sel2_jerup_electrons.eta, sel2_jerup_electrons.pt)
+            sel2_jerup_btagsf = btagsf_jerup[cut2_jerup]
 
             sel2_jerup_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(sel2_jerup_nextrajets),
@@ -1594,7 +1807,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
 
             sel2_jerup_bdtscore = bst.predict(sel2_jerup_d)
 
-            sel2_jerup_weight = np.sign(sel2_jerup_events.Generator.weight)*sel2_jerup_pu_weight*sel2_jerup_events.L1PreFiringWeight.Nom*sel2_jerup_electronidsf*sel2_jerup_electronrecosf
+            if dataset == 'ewkwhjj_reweighted':
+                sel2_jerup_weight = np.sign(sel2_jerup_events.Generator.weight)*sel2_jerup_pu_weight*sel2_jerup_events.L1PreFiringWeight.Nom*sel2_jerup_electronidsf*sel2_jerup_electronrecosf*sel2_jerup_btagsf*sel2_jerup_events.LHEReweightingWeight[:,9]
+            else:    
+                sel2_jerup_weight = np.sign(sel2_jerup_events.Generator.weight)*sel2_jerup_pu_weight*sel2_jerup_events.L1PreFiringWeight.Nom*sel2_jerup_electronidsf*sel2_jerup_electronrecosf*sel2_jerup_btagsf
 
             output['sel2_bdtscore_binning1_jerup'].fill(
                 dataset=dataset,
@@ -1616,6 +1832,10 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             sel2_electrons = tight_electrons[cut2][:,0]
             sel2_nextrajets = nextrajets[cut2]
             sel2_nextrabjets = nextrabjets[cut2]
+            if dataset != 'data':
+                sel2_btagsf = btagsf[cut2]
+                sel2_btagsf_bcup = btagsf_bcup[cut2]
+                sel2_btagsf_lightup = btagsf_lightup[cut2]
 
             sel2_X = pandas.DataFrame(np.transpose(np.vstack((
                 ak.to_numpy(sel2_nextrajets),
@@ -1664,17 +1884,17 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel2_electronrecosf = evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt)
                 sel2_electronrecosfUp = evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt)+sel2_electronrecosf
 
-                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
+                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf
                 sel2_weight_reweighted = []
                 for i in range(args.nreweights):
-                    sel2_weight_reweighted.append(np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,i])
-                sel2_weight_pileupup = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_pileupdown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_prefireup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_electronidsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]
-                sel2_weight_electronrecosfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp*sel2_events.LHEReweightingWeight[:,9]
-
-
+                    sel2_weight_reweighted.append(np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,i]*sel2_btagsf)
+                sel2_weight_pileupup = np.sign(sel2_events.Generator.weight)*sel2_puUp_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf
+                sel2_weight_pileupdown = np.sign(sel2_events.Generator.weight)*sel2_puDown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf
+                sel2_weight_prefireup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf
+                sel2_weight_electronidsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf
+                sel2_weight_electronrecosfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf
+                sel2_weight_bcbtagsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf_bcup
+                sel2_weight_lightbtagsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_events.LHEReweightingWeight[:,9]*sel2_btagsf_lightup
             else:
                 sel2_pu_weight = evaluator['pileup'](sel2_events.Pileup.nTrueInt)
                 sel2_puup_weight = evaluator['pileup_up'](sel2_events.Pileup.nTrueInt)
@@ -1684,12 +1904,14 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 sel2_electronrecosf = evaluator['electronrecosf'](sel2_electrons.eta, sel2_electrons.pt)
                 sel2_electronrecosfUp = evaluator['electronrecosfunc'](sel2_electrons.eta, sel2_electrons.pt)+sel2_electronrecosf
 
-                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_pileupup = np.sign(sel2_events.Generator.weight)*sel2_puup_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_pileupdown = np.sign(sel2_events.Generator.weight)*sel2_pudown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_prefireup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf
-                sel2_weight_electronidsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf
-                sel2_weight_electronrecosfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp
+                sel2_weight = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_btagsf
+                sel2_weight_pileupup = np.sign(sel2_events.Generator.weight)*sel2_puup_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_btagsf
+                sel2_weight_pileupdown = np.sign(sel2_events.Generator.weight)*sel2_pudown_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_btagsf
+                sel2_weight_prefireup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Up*sel2_electronidsf*sel2_electronrecosf*sel2_btagsf
+                sel2_weight_electronidsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsfUp*sel2_electronrecosf*sel2_btagsf
+                sel2_weight_electronrecosfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosfUp*sel2_btagsf
+                sel2_weight_bcbtagsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_btagsf_bcup
+                sel2_weight_lightbtagsfup = np.sign(sel2_events.Generator.weight)*sel2_pu_weight*sel2_events.L1PreFiringWeight.Nom*sel2_electronidsf*sel2_electronrecosf*sel2_btagsf_lightup
 
             output['sel2_bdtscore_binning1'].fill(
                 dataset=dataset,
@@ -1738,6 +1960,18 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     weight=sel2_weight_electronrecosfup
                 )
 
+                output['sel2_bdtscore_binning1_bcbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel2_bdtscore,
+                    weight=sel2_weight_bcbtagsfup
+                )
+
+                output['sel2_bdtscore_binning1_lightbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel2_bdtscore,
+                    weight=sel2_weight_lightbtagsfup
+                )
+
             output['sel2_bdtscore_binning2'].fill(
                 dataset=dataset,
                 bdtscore = sel2_bdtscore,
@@ -1783,6 +2017,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             output['sel2_leptonpt_binning1'].fill(
                 dataset=dataset,
                 leptonpt=sel2_electrons.pt,
+                weight=sel2_weight
+            )
+
+            output['sel2_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel2_electrons.eta),
                 weight=sel2_weight
             )
 
@@ -1856,6 +2096,18 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                     weight=sel2_weight
                 )
 
+                output['sel3_bdtscore_binning1_bcbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel2_bdtscore,
+                    weight=sel2_weight_bcbtagsfup
+                )
+
+                output['sel3_bdtscore_binning1_lightbtagsfup'].fill(
+                    dataset=dataset,
+                    bdtscore=sel2_bdtscore,
+                    weight=sel2_weight_lightbtagsfup
+                )
+
             output['sel3_bdtscore_binning2'].fill(
                 dataset=dataset,
                 bdtscore = sel2_bdtscore,
@@ -1901,6 +2153,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             output['sel3_leptonpt_binning1'].fill(
                 dataset=dataset,
                 leptonpt=sel2_electrons.pt,
+                weight=sel2_weight
+            )
+
+            output['sel3_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel2_electrons.eta),
                 weight=sel2_weight
             )
 
@@ -1952,6 +2210,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel4_weight
             )
 
+            output['sel4_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel4_muons.eta),
+                weight=sel4_weight
+            )
+
             output['sel4_met_binning1'].fill(
                 dataset=dataset,
                 met=sel4_events.PuppiMET.pt,
@@ -1985,6 +2249,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             output['sel6_leptonpt_binning1'].fill(
                 dataset=dataset,
                 leptonpt=sel4_muons.pt,
+                weight=sel4_weight
+            )
+
+            output['sel6_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel4_muons.eta),
                 weight=sel4_weight
             )
 
@@ -2037,6 +2307,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
                 weight=sel5_weight
             )
 
+            output['sel5_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel5_electrons.eta),
+                weight=sel5_weight
+            )
+
             output['sel5_met_binning1'].fill(
                 dataset=dataset,
                 met=sel5_events.PuppiMET.pt,
@@ -2070,6 +2346,12 @@ class EwkwhjjProcessor(processor.ProcessorABC):
             output['sel6_leptonpt_binning1'].fill(
                 dataset=dataset,
                 leptonpt=sel5_electrons.pt,
+                weight=sel5_weight
+            )
+
+            output['sel6_leptonabseta_binning1'].fill(
+                dataset=dataset,
+                leptonabseta=abs(sel5_electrons.eta),
                 weight=sel5_weight
             )
 
