@@ -1,6 +1,5 @@
 import torch
 from coffea.util import load
-
 from coffea import hist
 
 import coffea.hist
@@ -12,6 +11,15 @@ from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 
 import mplhep as hep
+
+import argparse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--gpu',dest='gpu',type=int,default=0)
+parser.add_argument('--lr',dest='lr',type=float,default=1e-6,help='learning rate')
+
+args = parser.parse_args()
 
 result_2018 = load("training_data_2018")
 
@@ -78,7 +86,8 @@ training_data = training_data[(training_data["label"] == "ewkwhjj")
                               | (training_data["label"] == "ttsemi")
                               | (training_data["label"] == "stoptchan")
                               | (training_data["label"] == "santitoptchan")
-                              | training_data["label"].str.contains("wlepht")
+#                              | training_data["label"].str.contains("wlepht")
+#                              | (training_data["label"] == "wlepht200400")
                                  ]
 
 training_data= training_data.reset_index(drop=True)
@@ -141,7 +150,7 @@ use_cuda = torch.cuda.is_available()
 
 #use_cuda = False
 
-device = torch.device("cuda:2" if use_cuda else "cpu")
+device = torch.device("cuda:"+str(args.gpu) if use_cuda else "cpu")
 
 print("Device: ",device)
 
@@ -159,24 +168,24 @@ class NeuralNetwork(nn.Module):
         super(NeuralNetwork, self).__init__()
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(37, 512),
+            nn.Linear(37, 1024),
             nn.ReLU(),
 #            nn.Sigmoid(),
-            nn.Linear(512, 512),
+            nn.Linear(1024, 1024),
             nn.ReLU(),
-#            nn.Linear(512, 512),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+#            nn.Linear(1024, 1024),
 #            nn.ReLU(),
-#            nn.Linear(512, 512),
-#            nn.ReLU(),
-#            nn.Linear(512, 512),
-#            nn.ReLU(),
-#            nn.Linear(512, 512),
+#            nn.Linear(1024, 1024),
 #            nn.ReLU(),            
 #            nn.Sigmoid(),
-#            nn.Linear(512, 512),
+#            nn.Linear(1024, 1024),
 #            nn.ReLU(),                        
 #            nn.Sigmoid(),
-            nn.Linear(512, 5),
+            nn.Linear(1024, 5),
 #            nn.ReLU(),                        
         )
 
@@ -190,20 +199,32 @@ print(model)
 
 #loss_fn = nn.CrossEntropyLoss()
 #loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([1.,1.,1.,1.,1.],device=device))
-bg_tot_xs = xs['ttsemi']+xs['stoptchan']+xs['santitoptchan']+2000.
-#loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([1.,xs['ttsemi']/bg_tot_xs,xs['stoptchan']/bg_tot_xs,xs['santitoptchan']/bg_tot_xs,2000./bg_tot_xs],device=device))
-loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([1.,1.,1.,1.,1.],device=device))
+#bg_tot_xs = xs['ttsemi']+xs['stoptchan']+xs['santitoptchan']+2000.
+#sum_bg_wgts = xs['ttsemi']/result["nevents"]['ttsemi']+xs['stoptchan']/result["nevents"]['stoptchan']+xs['santitoptchan']/result["nevents"]['santitoptchan']+xs['wlepht200400']/result["nevents"]['wlepht200400]
+#sum_bg_wgts = xs['ttsemi']/result["nevents"]['ttsemi']+xs['stoptchan']/result["nevents"]['stoptchan']+xs['santitoptchan']/result["nevents"]['santitoptchan']+xs['wlepht200400']/result["nevents"]['wlepht200400']
+sum_bg_wgts = xs['ttsemi']*len(training_data[training_data["label"] == 1])/result["nevents"]['ttsemi']+xs['stoptchan']*len(training_data[training_data["label"] == 2])/result["nevents"]['stoptchan']+xs['santitoptchan']*len(training_data[training_data["label"] == 3])/result["nevents"]['santitoptchan']+xs['wlepht200400']*len(training_data[training_data["label"] == 4])/result["nevents"]['wlepht200400']
+#loss_fn = nn.CrossEntropyLoss(reduction='sum',weight=torch.tensor([0.25*sum_bg_wgts/len(training_data[training_data["label"] == 0]),xs['ttsemi']/result["nevents"]['ttsemi']/len(training_data[training_data["label"] == 1]),xs['stoptchan']/result["nevents"]['stoptchan']/len(training_data[training_data["label"] == 2]),xs['santitoptchan']/result["nevents"]['santitoptchan']/len(training_data[training_data["label"] == 3]),xs['wlepht200400']/result["nevents"]['wlepht200400']/len(training_data[training_data["label"] == 4])],device=device))
+loss_fn = nn.CrossEntropyLoss(reduction='sum',weight=torch.tensor([0.1*sum_bg_wgts/len(training_data[training_data["label"] == 0]),xs['ttsemi']/result["nevents"]['ttsemi'],xs['stoptchan']/result["nevents"]['stoptchan'],xs['santitoptchan']/result["nevents"]['santitoptchan'],xs['wlepht200400']/result["nevents"]['wlepht200400']],device=device))
+#loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([sum_bg_wgts/result["nevents"]['ewkwhjj'],xs['ttsemi']/result["nevents"]['ttsemi'],xs['stoptchan']/result["nevents"]['stoptchan'],xs['santitoptchan']/result["nevents"]['santitoptchan'],xs['wlepht200400']/result["nevents"]['wlepht200400']],device=device))
+#loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([100000./len(training_data[training_data["label"] == 0]),1000000./len(training_data[training_data["label"] == 1]),1000000./len(training_data[training_data["label"] == 2]),1000000./len(training_data[training_data["label"] == 3]),1000000./len(training_data[training_data["label"] == 4])],device=device))
+
+
+#print([1./len(training_data[training_data["label"] == 0]),1/len(training_data[training_data["label"] == 1]),1/len(training_data[training_data["label"] == 2]),1/len(training_data[training_data["label"] == 3]),1/len(training_data[training_data["label"] == 4])])
+
+#loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([0.1,1.,1.,1.,1.],device=device))
+
+#loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([0.35,1.,1.,1.,1.],device=device))
 
 
 #loss_fn = nn.NLLLoss()
 #loss_fn = nn.MSELoss() 
 
-learning_rate = 1e-3
-#batch_size = 64
+#learning_rate = 1e-3
 batch_size = 256
+#learning_rate = 1e-5
 
 #optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 import numpy as np
 
@@ -245,6 +266,7 @@ print(t2_test.size())
 
 
 epoch_list = []
+batch_list = []
 train_loss_list = []
 test_loss_list = []
 
@@ -254,12 +276,17 @@ test_loss_list = []
 #epochs = 50
 #epochs = 1000
 epochs = 10
+
+total_batch = 0
+
 for e in range(epochs):
     if e % 1 == 0:
         print(e)
 
     epoch_list.append(e)    
 
+    print(len(list(torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(t1, replacement=False),batch_size,True))))
+    
     for batch_indices in list(torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(t1, replacement=False),batch_size,True)):
 
         optimizer.zero_grad()
@@ -277,34 +304,47 @@ for e in range(epochs):
 
         optimizer.step()
 
-    with torch.no_grad():
+        if total_batch % 10000 == 0:
+            print(total_batch)
         
-        output_train = model(t1)
-        
-        train_loss_list.append(loss_fn(output_train, t2).item())
+        if total_batch % 1000 == 0 and total_batch > 100:
+#        if False:    
 
-        output_test =  nn.Softmax(dim=1)(model(t1_test))
-
-        test_loss_list.append(loss_fn(output_test, t2_test).item())
-    
-        if e % 1 == 0:
-            print(loss.item())
+            batch_list.append(len(batch_list))
+            
+            with torch.no_grad():
         
-            output_train =  nn.Softmax(dim=1)(model(t1))
-
-            print(loss_fn(output_test, t2_test).item())
+                output_train = model(t1)
         
-            output_train = output_train.cpu()
-            output_train = output_train.detach()
-            y_train_pred = output_train.numpy()[:,0]
-            train_false_positive_rates, train_true_positive_rates, _ = roc_curve(np.array(y_train == 0,dtype=int), y_train_pred[:])
-            print(auc(train_false_positive_rates, train_true_positive_rates))
-    
-            output_test = output_test.cpu()
-            output_test = output_test.detach()
-            y_test_pred = output_test.numpy()[:,0]
-            test_false_positive_rates, test_true_positive_rates, _ = roc_curve(np.array(y_test == 0,dtype=int), y_test_pred[:])
-            print(auc(test_false_positive_rates, test_true_positive_rates))
+                train_loss_list.append(loss_fn(output_train, t2).item())
+
+                output_test =  model(t1_test)
+
+                test_loss_list.append(loss_fn(output_test, t2_test).item())
+
+        total_batch += 1
+                
+with torch.no_grad():
+                
+    output_test = nn.Softmax(dim=1)(model(t1_test))
+    output_train =  nn.Softmax(dim=1)(model(t1))
+        
+    output_train = output_train.cpu()
+    output_train = output_train.detach()
+    y_train_pred = output_train.numpy()[:,0]
+    train_false_positive_rates, train_true_positive_rates, _ = roc_curve(np.array(y_train == 0,dtype=int), y_train_pred[:])
+
+    output_test = output_test.cpu()
+    output_test = output_test.detach()
+    y_test_pred = output_test.numpy()[:,0]
+    test_false_positive_rates, test_true_positive_rates, _ = roc_curve(np.array(y_test == 0,dtype=int), y_test_pred[:])
+
+#            print(loss.item())
+#            print(loss_fn(output_test, t2_test).item())
+#            print(auc(train_false_positive_rates, train_true_positive_rates))
+#            print(auc(test_false_positive_rates, test_true_positive_rates))
+
+
 
 torch.save(model.state_dict(), 'model_weights.pth')
 
@@ -314,11 +354,6 @@ y_train_pred = output_train.numpy()[:,0]
 #train_false_positive_rates, train_true_positive_rates, _ = roc_curve(y_train[:], y_train_pred[:])
 train_false_positive_rates, train_true_positive_rates, _ = roc_curve(np.array(y_train == 0,dtype=int), y_train_pred[:])
 
-
-print(output_test)
-output_test_softmax = nn.Softmax(dim=1)(output_test)
-print(output_test_softmax)
-
 print(auc(train_false_positive_rates, train_true_positive_rates))
 
 output_test = output_test.cpu()
@@ -326,13 +361,6 @@ output_test = output_test.detach()
 y_test_pred = output_test.numpy()[:,0]
 test_false_positive_rates, test_true_positive_rates, _ = roc_curve(np.array(y_test == 0,dtype=int), y_test_pred[:])
 print(auc(test_false_positive_rates, test_true_positive_rates))
-
-
-output_test_softmax = output_test_softmax.cpu()
-output_test_softmax = output_test_softmax.detach()
-y_test_softmax_pred = output_test_softmax.numpy()[:,0]
-test_softmax_false_positive_rates, test_softmax_true_positive_rates, _ = roc_curve(np.array(y_test == 0,dtype=int), y_test_softmax_pred[:])
-print(auc(test_softmax_false_positive_rates, test_softmax_true_positive_rates))
 
 plt.style.use(hep.style.ROOT) 
 
@@ -348,34 +376,54 @@ roc_fig.savefig("roc.png")
 
 loss_fig = plt.figure()
 
-plt.plot(np.array(epoch_list), np.array(train_loss_list))
-plt.plot(np.array(epoch_list), np.array(test_loss_list))
+#plt.plot(np.array(epoch_list), np.array(train_loss_list))
+#plt.plot(np.array(epoch_list), np.array(test_loss_list))
+plt.plot(np.array(batch_list), np.array(train_loss_list))
+plt.plot(np.array(batch_list), np.array(test_loss_list))
 
-plt.xlabel('Epoch')
+#plt.xlabel('Epoch')
+plt.xlabel('Batch')
 plt.ylabel('Cross Entropy Loss')
 
 loss_fig.savefig("loss.png")
 
-#h=coffea.hist.Hist('Events',coffea.hist.Cat('dataset', 'Dataset'),coffea.hist.Bin('bdtscore', 'BDT score', 100, 0, 1))
-h=coffea.hist.Hist('Events',coffea.hist.Cat('dataset', 'Dataset'),coffea.hist.Bin('bdtscore', 'BDT score', 50, 0, 1))
+#h=coffea.hist.Hist('Events',coffea.hist.Cat('dataset', 'Dataset'),coffea.hist.Bin('dnnoutput', 'BDT score', 100, 0, 1))
+htrain=coffea.hist.Hist('Events',coffea.hist.Cat('dataset', 'Dataset'),coffea.hist.Bin('dnnoutput', 'DNN output', 50, 0, 1))
+htest=coffea.hist.Hist('Events',coffea.hist.Cat('dataset', 'Dataset'),coffea.hist.Bin('dnnoutput', 'DNN output', 50, 0, 1))
 
 print(y_train_pred)
 
-h.fill(dataset='Signal train',bdtscore=y_train_pred[y_train == 1],weight=w_train[y_train==1])
-h.fill(dataset='Background train',bdtscore=y_train_pred[y_train == 0],weight=w_train[y_train==0])
-#h.fill(dataset='Signal train',bdtscore=y_train_pred[y_train == 1])
-#h.fill(dataset='Background train',bdtscore=y_train_pred[y_train == 0])
+htrain.fill(dataset='Signal train',dnnoutput=y_train_pred[y_train == 0],weight=w_train[y_train==0])
+htrain.fill(dataset='Background train',dnnoutput=y_train_pred[y_train > 0],weight=w_train[y_train>0])
+#h.fill(dataset='Signal train',dnnoutput=y_train_pred[y_train == 1])
+#h.fill(dataset='Background train',dnnoutput=y_train_pred[y_train == 0])
 
-print(np.sum(h.values(overflow='all')[('Background train',)]))
-print(result["nevents"]['wlepsherpa'])
+htest.fill(dataset='Signal test',dnnoutput=y_test_pred[y_test == 0],weight=w_test[y_test==0])
+htest.fill(dataset='Background test',dnnoutput=y_test_pred[y_test > 0],weight=w_test[y_test>0])
 
-bdtscorefig, ax = plt.subplots()
+#print(np.sum(htrain.values(overflow='all')[('Background train',)]))
+#print(result["nevents"]['wlepsherpa'])
 
-ax.set_xlabel('BDT score')
+dnnoutputtrainfig, ax = plt.subplots()
+
+ax.set_xlabel('DNN output')
 ax.set_ylim(0.001, 10000)
 ax.set_yscale('log')
 ax.legend(title=None)
 
-hist.plot1d(h,overflow="over")
+hist.plot1d(htrain,overflow="over")
 
-bdtscorefig.savefig('bdtscore.png')
+dnnoutputtrainfig.savefig('dnnoutputtrain.png')
+
+dnnoutputtestfig, ax = plt.subplots()
+
+ax.set_xlabel('DNN output')
+ax.set_ylim(0.001, 10000)
+ax.set_yscale('log')
+ax.legend(title=None)
+
+hist.plot1d(htest,overflow="over")
+
+dnnoutputtestfig.savefig('dnnoutputtest.png')
+
+torch.save(model, 'model.pth')
