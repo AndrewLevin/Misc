@@ -21,6 +21,10 @@ parser.add_argument('--lr',dest='lr',type=float,default=1e-6,help='learning rate
 
 args = parser.parse_args()
 
+#torch.manual_seed(0)
+
+print('initial seed:',torch.initial_seed())
+
 result_2018 = load("training_data_2018")
 
 resolved_variables = ['nextrajets','nextrabjets','leptonflavor','leptoncharge','leptonpt','leptoneta','leptonphi','met','metphi','higgsjet1pt','higgsjet2pt','vbfjet1pt','vbfjet2pt','higgsjet1eta','higgsjet2eta','vbfjet1eta','vbfjet2eta','higgsjet1phi','higgsjet2phi','vbfjet1phi','vbsjet2phi','higgsjet1btag','higgsjet2btag','vbfjet1btag','vbjfet2btag','higgsdijetmass','vbfdijetmass','vbfdijetabsdeta','leptonhiggsjet1mt','leptonhiggsjet2mt','higgdijetdeltar','vbfdijetdeltar','higgsdijetabsdeta','dr1','dr2','dr3','dr4']
@@ -204,7 +208,7 @@ print(model)
 #sum_bg_wgts = xs['ttsemi']/result["nevents"]['ttsemi']+xs['stoptchan']/result["nevents"]['stoptchan']+xs['santitoptchan']/result["nevents"]['santitoptchan']+xs['wlepht200400']/result["nevents"]['wlepht200400']
 sum_bg_wgts = xs['ttsemi']*len(training_data[training_data["label"] == 1])/result["nevents"]['ttsemi']+xs['stoptchan']*len(training_data[training_data["label"] == 2])/result["nevents"]['stoptchan']+xs['santitoptchan']*len(training_data[training_data["label"] == 3])/result["nevents"]['santitoptchan']+xs['wlepht200400']*len(training_data[training_data["label"] == 4])/result["nevents"]['wlepht200400']
 #loss_fn = nn.CrossEntropyLoss(reduction='sum',weight=torch.tensor([0.25*sum_bg_wgts/len(training_data[training_data["label"] == 0]),xs['ttsemi']/result["nevents"]['ttsemi']/len(training_data[training_data["label"] == 1]),xs['stoptchan']/result["nevents"]['stoptchan']/len(training_data[training_data["label"] == 2]),xs['santitoptchan']/result["nevents"]['santitoptchan']/len(training_data[training_data["label"] == 3]),xs['wlepht200400']/result["nevents"]['wlepht200400']/len(training_data[training_data["label"] == 4])],device=device))
-loss_fn = nn.CrossEntropyLoss(reduction='sum',weight=torch.tensor([0.1*sum_bg_wgts/len(training_data[training_data["label"] == 0]),xs['ttsemi']/result["nevents"]['ttsemi'],xs['stoptchan']/result["nevents"]['stoptchan'],xs['santitoptchan']/result["nevents"]['santitoptchan'],xs['wlepht200400']/result["nevents"]['wlepht200400']],device=device))
+loss_fn = nn.CrossEntropyLoss(reduction='sum',weight=torch.tensor([0.5*sum_bg_wgts/len(training_data[training_data["label"] == 0]),xs['ttsemi']/result["nevents"]['ttsemi'],xs['stoptchan']/result["nevents"]['stoptchan'],xs['santitoptchan']/result["nevents"]['santitoptchan'],xs['wlepht200400']/result["nevents"]['wlepht200400']],device=device))
 #loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([sum_bg_wgts/result["nevents"]['ewkwhjj'],xs['ttsemi']/result["nevents"]['ttsemi'],xs['stoptchan']/result["nevents"]['stoptchan'],xs['santitoptchan']/result["nevents"]['santitoptchan'],xs['wlepht200400']/result["nevents"]['wlepht200400']],device=device))
 #loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([100000./len(training_data[training_data["label"] == 0]),1000000./len(training_data[training_data["label"] == 1]),1000000./len(training_data[training_data["label"] == 2]),1000000./len(training_data[training_data["label"] == 3]),1000000./len(training_data[training_data["label"] == 4])],device=device))
 
@@ -275,7 +279,7 @@ test_loss_list = []
 
 #epochs = 50
 #epochs = 1000
-epochs = 10
+epochs = 5
 
 total_batch = 0
 
@@ -346,13 +350,15 @@ with torch.no_grad():
 
 
 
-torch.save(model.state_dict(), 'model_weights.pth')
-
 output_train = output_train.cpu()
 output_train = output_train.detach()
 y_train_pred = output_train.numpy()[:,0]
 #train_false_positive_rates, train_true_positive_rates, _ = roc_curve(y_train[:], y_train_pred[:])
 train_false_positive_rates, train_true_positive_rates, _ = roc_curve(np.array(y_train == 0,dtype=int), y_train_pred[:])
+
+
+print(len(output_train[output_test > 1]))
+print(len(output_train[output_train > 1]))
 
 print(auc(train_false_positive_rates, train_true_positive_rates))
 
@@ -411,6 +417,9 @@ ax.set_ylim(0.001, 10000)
 ax.set_yscale('log')
 ax.legend(title=None)
 
+htrain.scale(2)
+htest.scale(2)
+
 hist.plot1d(htrain,overflow="over")
 
 dnnoutputtrainfig.savefig('dnnoutputtrain.png')
@@ -427,3 +436,4 @@ hist.plot1d(htest,overflow="over")
 dnnoutputtestfig.savefig('dnnoutputtest.png')
 
 torch.save(model, 'model.pth')
+torch.save(model.state_dict(), 'model_state.pth')
